@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:22:07+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"When the checkpointer is asked to save, under sync and under exit.\nBook: Chapter 9, section 9.6\nRun: python ch09/durability_order.py\n\"\"\"\n# region: order\nfrom typing import Any, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\nevents: list = []\n\n\nclass LoggingSaver(InMemorySaver):  # notes every save in `events`\n    def put(self, config: Any, checkpoint: Any, metadata: Any,\n            new_versions: Any) -> Any:  # ①\n        events.append(f\"save {metadata['step']}\")\n        return super().put(config, checkpoint, metadata, new_versions)\n\n\nclass State(TypedDict):\n    customer: str\n\n\ndef make_node(name: str) -> Any:\n    def node(state: State) -> dict:\n        events.append(f\"{name} runs\")  # ②\n        return {}\n    return node\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"read\", make_node(\"read\"))\nbuilder.add_node(\"send\", make_node(\"send\"))\nbuilder.add_edge(START, \"read\")\nbuilder.add_edge(\"read\", \"send\")\nbuilder.add_edge(\"send\", END)\n\nfor mode in (\"sync\", \"exit\"):\n    events.clear()\n    graph = builder.compile(checkpointer=LoggingSaver())\n    config = {\"configurable\": {\"thread_id\": \"ana\"}}\n    graph.invoke({\"customer\": \"Ana\"}, config, durability=mode)\n    print(mode + \":\", \", \".join(events))  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "sync: save -1, save 0, read runs, save 1, send runs, save 2"
+  },
+  {
+   "kind": "stdout",
+   "text": "exit: read runs, send runs, save 2"
+  }
+ ]
+}

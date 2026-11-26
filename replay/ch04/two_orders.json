@@ -1,0 +1,50 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T00:40:44+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A real model asked about two orders at once.\nBook: Chapter 4, section 4.7\nRun: python ch04/two_orders.py   (or OFFLINE=1 python ch04/two_orders.py)\n\"\"\"\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\nfrom typing import Literal\n\nfrom langgraph.graph import END, START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode\n\nfrom common import get_model  # the helper from chapter 0\n\nmodel = get_model().bind_tools([lookup_order])\n\n\ndef call_model(state: MessagesState) -> dict:\n    return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n\ndef route(state: MessagesState) -> Literal[\"tools\", \"__end__\"]:  # ①\n    last_message = state[\"messages\"][-1]\n    return \"tools\" if last_message.tool_calls else END\n\n\nbuilder = StateGraph(MessagesState)\nbuilder.add_node(\"model\", call_model)\nbuilder.add_node(\"tools\", ToolNode([lookup_order]))  # ②\nbuilder.add_edge(START, \"model\")\nbuilder.add_conditional_edges(\"model\", route)  # ③\nbuilder.add_edge(\"tools\", \"model\")  # ④\ngraph = builder.compile()\n\n# region: real_two\ntext = \"Where are my orders A17 and B42? Answer in one sentence.\"\nquestion = {\"role\": \"user\", \"content\": text}\nlimit = {\"recursion_limit\": 10}\nresult = graph.invoke({\"messages\": [question]}, config=limit)\nfor message in result[\"messages\"]:\n    print(message.type, \"|\", message.content)\n    if message.type == \"ai\":\n        print(\"   tool calls:\", len(message.tool_calls))  # ①\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I'll look up both orders.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 78, \"prompt_tokens\": 316, \"total_tokens\": 394, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 0, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 128, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 128, \"prompt_cache_miss_tokens\": 188}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"c5b04931-5e46-44f2-a1e5-50261c918b50\", \"finish_reason\": \"tool_calls\", \"logprobs\": null, \"normalized_finish_reason\": \"tool_call\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20aff-6d3a-72ce-b6db-7762819a29ea-0\", \"tool_calls\": [{\"name\": \"lookup_order\", \"args\": {\"order_id\": \"A17\"}, \"id\": \"call_00_ET_DRXGCVhKVVQD6KEDwn6c6451\", \"type\": \"tool_call\"}, {\"name\": \"lookup_order\", \"args\": {\"order_id\": \"B42\"}, \"id\": \"call_01_ET_JJnVJbPOBa6hIXTh2YqQ5006\", \"type\": \"tool_call\"}], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 316, \"output_tokens\": 78, \"total_tokens\": 394, \"input_token_details\": {\"cache_read\": 128}, \"output_token_details\": {\"reasoning\": 0}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"Order A17 shipped on 18 November, while order B42 is delayed and waiting for stock.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 21, \"prompt_tokens\": 426, \"total_tokens\": 447, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 0, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 256, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 256, \"prompt_cache_miss_tokens\": 170}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"202e932e-a55a-4146-9cba-0b250375594b\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20aff-7704-73e6-b415-c89158729c67-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 426, \"output_tokens\": 21, \"total_tokens\": 447, \"input_token_details\": {\"cache_read\": 256}, \"output_token_details\": {\"reasoning\": 0}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "human | Where are my orders A17 and B42? Answer in one sentence."
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | I'll look up both orders."
+  },
+  {
+   "kind": "stdout",
+   "text": "   tool calls: 2"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool | shipped on 18 November"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool | delayed: waiting for stock"
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | Order A17 shipped on 18 November, while order B42 is delayed and waiting for stock."
+  },
+  {
+   "kind": "stdout",
+   "text": "   tool calls: 0"
+  }
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "07-asking-before-acting",
+ "recordedAt": "2026-11-24T02:54:55+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run for chapter 7: which prints happen again after a resume.\nBook: Chapter 7, section 7.4\nRun: python ch07/quiz_prepare.py\n\"\"\"\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, interrupt\n\n\ncalls: list = []\n\n\nclass State(TypedDict):\n    answer: str\n\n\ndef look_up(state: State) -> dict:\n    calls.append(\"look_up\")\n    return {}\n\n\ndef confirm(state: State) -> dict:\n    calls.append(\"confirm\")\n    answer = interrupt(\"Go on?\")\n    return {\"answer\": answer}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"look_up\", look_up)\nbuilder.add_node(\"confirm\", confirm)\nbuilder.add_edge(START, \"look_up\")\nbuilder.add_edge(\"look_up\", \"confirm\")\nbuilder.add_edge(\"confirm\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"q\"}}\ngraph.invoke({\"answer\": \"\"}, config)\ngraph.invoke(Command(resume=\"yes\"), config)\nprint(calls)\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['look_up', 'confirm', 'confirm']"
+  }
+ ]
+}

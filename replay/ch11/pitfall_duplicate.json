@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:04+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A shared key with operator.add is added twice; add_messages is not.\nBook: Chapter 11, section 11.2\nRun: python ch11/pitfall_duplicate.py\n\"\"\"\n# region: duplicate\nimport operator\nfrom collections.abc import Callable\nfrom typing import Annotated, TypedDict\n\nfrom langchain_core.messages import AIMessage\nfrom langgraph.graph import START, MessagesState, StateGraph\n\n\nclass Notes(TypedDict):\n    notes: Annotated[list[str], operator.add]  # ①\n\n\ndef add_note(state: Notes) -> dict:\n    return {\"notes\": [\"checked\"]}\n\n\ndef add_reply(state: MessagesState) -> dict:\n    return {\"messages\": [AIMessage(\"checked\")]}\n\n\ndef nest(schema: type, node: Callable) -> tuple:  # ②\n    inner = StateGraph(schema)\n    inner.add_node(\"check\", node)\n    inner.add_edge(START, \"check\")\n    subgraph = inner.compile()\n    outer = StateGraph(schema)\n    outer.add_node(\"orders\", subgraph)\n    outer.add_edge(START, \"orders\")\n    return subgraph, outer.compile()\n\n\nsubgraph, parent = nest(Notes, add_note)\nprint(subgraph.invoke({\"notes\": [\"start\"]}))  # ③\nprint(parent.invoke({\"notes\": [\"start\"]}))  # ④\n\nsubgraph, parent = nest(MessagesState, add_reply)\nquestion = {\"role\": \"user\", \"content\": \"start\"}\nresult = parent.invoke({\"messages\": [question]})\nprint([message.content for message in result[\"messages\"]])  # ⑤\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'notes': ['start', 'checked']}"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'notes': ['start', 'start', 'checked']}"
+  },
+  {
+   "kind": "stdout",
+   "text": "['start', 'checked']"
+  }
+ ]
+}

@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:22:06+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Which exceptions a retry policy retries, and what retry_on changes.\nBook: Chapter 9, section 9.4\nRun: python ch09/retry_on.py\n\"\"\"\n# region: kinds\nfrom typing import TypedDict\n\nfrom langgraph.graph import START, StateGraph\nfrom langgraph.types import RetryPolicy\n\n\nclass State(TypedDict):\n    notes: list\n\n\nclass MailboxFull(Exception):  # an error type of our own\n    pass\n\n\ndef attempts_for(error_type: type, **policy_fields: object) -> int:\n    attempts = []\n\n    def send(state: State) -> dict:\n        attempts.append(\"run\")  # ①\n        raise error_type(\"boom\")\n\n    policy = RetryPolicy(initial_interval=0.01, jitter=False, **policy_fields)\n    builder = StateGraph(State)\n    builder.add_node(\"send\", send, retry_policy=policy)\n    builder.add_edge(START, \"send\")\n    try:\n        builder.compile().invoke({\"notes\": []})\n    except Exception:  # ②\n        pass\n    return len(attempts)\n\n\nfor error_type in (ConnectionError, TimeoutError, ValueError,\n                   RuntimeError, MailboxFull):\n    print(error_type.__name__, attempts_for(error_type))\nprint(\"ValueError with retry_on=ValueError:\",\n      attempts_for(ValueError, retry_on=ValueError))  # ③\nprint(\"ConnectionError with retry_on=ValueError:\",\n      attempts_for(ConnectionError, retry_on=ValueError))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "ConnectionError 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "TimeoutError 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "ValueError 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "RuntimeError 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "MailboxFull 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "ValueError with retry_on=ValueError: 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "ConnectionError with retry_on=ValueError: 1"
+  }
+ ]
+}

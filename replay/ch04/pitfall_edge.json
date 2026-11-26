@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T01:02:34+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"No edge back from the tool node: the run ends after the tool message.\nBook: Chapter 4, section 4.10\nRun: python ch04/pitfall_edge.py\n\"\"\"\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n# region: no_edge\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\nfrom common import ScriptedModel, ask_for, say  # the helpers from chapter 0\n\nscript = [ask_for(\"lookup_order\", {\"order_id\": \"B42\"}, \"call_1\"),\n          say(\"B42 is delayed.\")]\nmodel = ScriptedModel(script=script).bind_tools([lookup_order])\n\n\ndef call_model(state: MessagesState) -> dict:\n    return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n\nbuilder = StateGraph(MessagesState)\nbuilder.add_node(\"model\", call_model)\nbuilder.add_node(\"tools\", ToolNode([lookup_order]))\nbuilder.add_edge(START, \"model\")\nbuilder.add_conditional_edges(\"model\", tools_condition)\ngraph = builder.compile()  # ①\n\nquestion = {\"role\": \"user\", \"content\": \"Where is my order B42?\"}\nresult = graph.invoke({\"messages\": [question]})\nprint([message.type for message in result[\"messages\"]])\nprint(\"last message:\", result[\"messages\"][-1].content)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "last message: delayed: waiting for stock"
+  }
+ ]
+}

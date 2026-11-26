@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T01:02:34+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A tool node with another name: tools_condition names an unknown node.\nBook: Chapter 4, section 4.10\nRun: python ch04/pitfall_name.py\n\"\"\"\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n# region: name\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\nfrom common import ScriptedModel, say  # the helpers from chapter 0\n\nmodel = ScriptedModel(script=[say(\"Hello.\")]).bind_tools([lookup_order])\n\n\ndef call_model(state: MessagesState) -> dict:\n    return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n\nbuilder = StateGraph(MessagesState)\nbuilder.add_node(\"model\", call_model)\nbuilder.add_node(\"runner\", ToolNode([lookup_order]))  # ①\nbuilder.add_edge(START, \"model\")\nbuilder.add_conditional_edges(\"model\", tools_condition)\nbuilder.add_edge(\"runner\", \"model\")\ntry:\n    builder.compile()\nexcept ValueError as error:  # ②\n    print(\"ValueError:\", error)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "ValueError: At 'model' node, 'tools_condition' branch found unknown target 'tools'"
+  }
+ ]
+}

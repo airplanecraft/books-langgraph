@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:16:26+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A node that returns a Command without a return type: edges are not drawn.\nBook: Chapter 3, section 3.6\nRun: python ch03/pitfall_command.py\n\"\"\"\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command\n\n\nclass State(TypedDict):\n    customer: str\n    body: str\n    category: str\n    reply: str\n\n\n# region: bare\ndef classify(state: State):  # ①\n    billing = \"charged\" in state[\"body\"]\n    category = \"billing\" if billing else \"other\"\n    target = \"billing_reply\" if billing else \"general_reply\"\n    return Command(update={\"category\": category}, goto=target)\n# endregion\n\n\ndef billing_reply(state: State) -> dict:\n    return {\"reply\": f\"Hi {state['customer']}, we are checking the charge.\"}\n\n\ndef general_reply(state: State) -> dict:\n    return {\"reply\": f\"Hi {state['customer']}, thanks for your email.\"}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_node(\"billing_reply\", billing_reply)\nbuilder.add_node(\"general_reply\", general_reply)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_edge(\"billing_reply\", END)\nbuilder.add_edge(\"general_reply\", END)\ngraph = builder.compile()\n\nticket = {\"customer\": \"Ana\", \"body\": \"I was charged twice for order B42.\",\n          \"category\": \"unknown\", \"reply\": \"\"}\nresult = graph.invoke(ticket)\nprint(result[\"category\"], \"|\", result[\"reply\"])\nedges = graph.get_graph().edges\nfor edge in sorted((e.source, e.target, e.conditional) for e in edges):\n    print(edge)\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "billing | Hi Ana, we are checking the charge."
+  },
+  {
+   "kind": "stdout",
+   "text": "('__start__', 'classify', False)"
+  },
+  {
+   "kind": "stdout",
+   "text": "('classify', '__end__', False)"
+  }
+ ]
+}

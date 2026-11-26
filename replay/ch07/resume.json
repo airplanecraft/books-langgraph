@@ -1,0 +1,62 @@
+{
+ "version": 1,
+ "lesson": "07-asking-before-acting",
+ "recordedAt": "2026-11-24T02:54:52+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Command(resume=...) carries the answer back: it becomes the value of interrupt.\nBook: Chapter 7, section 7.3\nRun: python ch07/resume.py\n\"\"\"\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import interrupt\n\n\nclass State(TypedDict):\n    customer: str\n    draft: str\n    status: str\n\n\ndef review(state: State) -> dict:\n    print(\"review starts\")\n    answer = interrupt(\"Send this reply?\")  # ①\n    print(\"review got:\", answer)  # ②\n    return {\"status\": answer}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"review\", review)\nbuilder.add_edge(START, \"review\")\nbuilder.add_edge(\"review\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())  # ③\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}  # ④\nticket = {\"customer\": \"Ana\", \"draft\": \"Hi Ana, your refund is on its way.\"}\nresult = graph.invoke(ticket, config)  # ⑤\nprint(\"keys:\", list(result))\npending = result[\"__interrupt__\"]  # ⑥\nprint(type(pending).__name__, len(pending), type(pending[0]).__name__)\nprint(\"question:\", pending[0].value)\n\nsnapshot = graph.get_state(config)  # ⑦\nprint(\"next:\", snapshot.next)\nprint(\"pending:\", snapshot.interrupts[0].value)\nprint(\"checkpoints:\", len(list(graph.get_state_history(config))))  # ⑧\n\n# region: resume\nfrom langgraph.types import Command\n\nresult = graph.invoke(Command(resume=\"approved\"), config)  # ①\nprint(\"result:\", result)  # ②\nsnapshot = graph.get_state(config)\nprint(\"next:\", snapshot.next)  # ③\nprint(\"checkpoints:\", len(list(graph.get_state_history(config))))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "review starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "keys: ['customer', 'draft', '__interrupt__']"
+  },
+  {
+   "kind": "stdout",
+   "text": "list 1 Interrupt"
+  },
+  {
+   "kind": "stdout",
+   "text": "question: Send this reply?"
+  },
+  {
+   "kind": "stdout",
+   "text": "next: ('review',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "pending: Send this reply?"
+  },
+  {
+   "kind": "stdout",
+   "text": "checkpoints: 2"
+  },
+  {
+   "kind": "stdout",
+   "text": "review starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "review got: approved"
+  },
+  {
+   "kind": "stdout",
+   "text": "result: {'customer': 'Ana', 'draft': 'Hi Ana, your refund is on its way.', 'status': 'approved'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "next: ()"
+  },
+  {
+   "kind": "stdout",
+   "text": "checkpoints: 3"
+  }
+ ]
+}

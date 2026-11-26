@@ -1,0 +1,54 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:34:02+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Three node runs: limit 3 runs them all, then raises.\nBook: Chapter 3, section 3.4\nRun: python ch03/limit_edge.py\n\"\"\"\n# region: edge\nfrom typing import Literal, TypedDict\n\nfrom langgraph.errors import GraphRecursionError\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    count: int\n\n\ndef add_one(state: State) -> dict:\n    count = state[\"count\"] + 1\n    print(\"add_one ran, count is now\", count)  # ①\n    return {\"count\": count}\n\n\ndef after_add(state: State) -> Literal[\"add_one\", \"__end__\"]:\n    return END if state[\"count\"] >= 3 else \"add_one\"\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"add_one\", add_one)\nbuilder.add_edge(START, \"add_one\")\nbuilder.add_conditional_edges(\"add_one\", after_add)\ngraph = builder.compile()\n\nfor limit in (3, 4):\n    print(\"limit\", limit)\n    try:\n        graph.invoke({\"count\": 0}, config={\"recursion_limit\": limit})\n        print(\"finished\")  # ②\n    except GraphRecursionError:\n        print(\"GraphRecursionError\")\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "limit 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "add_one ran, count is now 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "add_one ran, count is now 2"
+  },
+  {
+   "kind": "stdout",
+   "text": "add_one ran, count is now 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "GraphRecursionError"
+  },
+  {
+   "kind": "stdout",
+   "text": "limit 4"
+  },
+  {
+   "kind": "stdout",
+   "text": "add_one ran, count is now 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "add_one ran, count is now 2"
+  },
+  {
+   "kind": "stdout",
+   "text": "add_one ran, count is now 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "finished"
+  }
+ ]
+}

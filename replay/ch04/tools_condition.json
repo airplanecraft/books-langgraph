@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T01:02:32+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A loop builder for stand-in models, and the own route next to tools_condition.\nBook: Chapter 4, section 4.4\nRun: python ch04/tools_condition.py\n\"\"\"\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n# region: helper\nfrom collections.abc import Callable\n\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\nfrom common import ScriptedModel  # the stand-in model of chapter 0\n\n\ndef build(script: list, tools: list, router: Callable = tools_condition,\n          verbose: bool = False) -> tuple:\n    model = ScriptedModel(script=script).bind_tools(tools)\n\n    def call_model(state: MessagesState) -> dict:\n        if verbose:\n            kinds = [message.type for message in state[\"messages\"]]\n            print(\"model node receives\", len(kinds), kinds)\n        return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", router)  # ①\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile(), model\n# endregion\n\n# region: compare\nfrom typing import Literal\n\nfrom langgraph.graph import END\n\nfrom common import ask_for, say  # the helpers from chapter 0\n\n\ndef route(state: MessagesState) -> Literal[\"tools\", \"__end__\"]:\n    return \"tools\" if state[\"messages\"][-1].tool_calls else END\n\n\nscript = [ask_for(\"lookup_order\", {\"order_id\": \"A17\"}, \"call_1\"),\n          say(\"A17 has shipped.\")]\nquestion = {\"role\": \"user\", \"content\": \"Where is my order A17?\"}\nfor router in (route, tools_condition):  # ①\n    graph, _ = build(script, [lookup_order], router)\n    result = graph.invoke({\"messages\": [question]})\n    kinds = [message.type for message in result[\"messages\"]]\n    print(router.__name__, kinds, result[\"messages\"][-1].content)  # ②\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "route ['human', 'ai', 'tool', 'ai'] A17 has shipped."
+  },
+  {
+   "kind": "stdout",
+   "text": "tools_condition ['human', 'ai', 'tool', 'ai'] A17 has shipped."
+  }
+ ]
+}

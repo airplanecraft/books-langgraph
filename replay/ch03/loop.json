@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:16:23+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A loop: draft a reply, review it, and go back to drafting until it passes.\nBook: Chapter 3, section 3.2\nRun: python ch03/loop.py\n\"\"\"\n# region: nodes\nfrom typing import Literal, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\nfrom common import ScriptedModel, say  # the helpers from chapter 0\n\nreplies = [say(\"Hi Ana, we got your email.\"),\n           say(\"Sorry about the double charge. We will refund it.\")]\nmodel = ScriptedModel(script=replies)  # ①\n\n\nclass State(TypedDict):\n    reply: str\n    feedback: str\n    approved: bool\n\n\ndef draft(state: State) -> dict:\n    prompt = \"Write a reply. \" + state[\"feedback\"]  # ②\n    print(\"prompt:\", prompt)\n    message = {\"role\": \"user\", \"content\": prompt}\n    reply = model.invoke([message]).content\n    print(\"draft:\", reply)\n    return {\"reply\": reply}\n\n\ndef review(state: State) -> dict:\n    approved = \"refund\" in state[\"reply\"]  # ③\n    print(\"review:\", approved)\n    feedback = \"\" if approved else \"Mention the refund.\"\n    return {\"approved\": approved, \"feedback\": feedback}\n\n\ndef after_review(state: State) -> Literal[\"draft\", \"__end__\"]:  # ④\n    return END if state[\"approved\"] else \"draft\"\n# endregion\n\n\n# region: build\nbuilder = StateGraph(State)\nbuilder.add_node(\"draft\", draft)\nbuilder.add_node(\"review\", review)\nbuilder.add_edge(START, \"draft\")\nbuilder.add_edge(\"draft\", \"review\")\nbuilder.add_conditional_edges(\"review\", after_review)  # ①\ngraph = builder.compile()\ngraph.invoke({\"reply\": \"\", \"feedback\": \"\", \"approved\": False})\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "prompt: Write a reply. "
+  },
+  {
+   "kind": "stdout",
+   "text": "draft: Hi Ana, we got your email."
+  },
+  {
+   "kind": "stdout",
+   "text": "review: False"
+  },
+  {
+   "kind": "stdout",
+   "text": "prompt: Write a reply. Mention the refund."
+  },
+  {
+   "kind": "stdout",
+   "text": "draft: Sorry about the double charge. We will refund it."
+  },
+  {
+   "kind": "stdout",
+   "text": "review: True"
+  }
+ ]
+}

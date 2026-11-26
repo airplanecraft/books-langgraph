@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:05+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The smallest handoff: a node in a subgraph names a node of the parent graph.\nBook: Chapter 11, section 11.6\nRun: python ch11/handoff_basic.py\n\"\"\"\n# region: basic\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command\n\n\nclass Ticket(TypedDict):\n    log: Annotated[list[str], operator.add]\n\n\ndef hand_over(state: Ticket) -> Command:  # ①\n    return Command(graph=Command.PARENT, goto=\"billing\",\n                   update={\"log\": [\"support: pass to billing\"]})\n\n\ndef billing(state: Ticket) -> dict:\n    return {\"log\": [\"billing: refund noted\"]}\n\n\ninner = StateGraph(Ticket)\ninner.add_node(\"hand_over\", hand_over)\ninner.add_edge(START, \"hand_over\")\nsupport = inner.compile()\n\nouter = StateGraph(Ticket)\nouter.add_node(\"support\", support, destinations=(\"billing\",))  # ②\nouter.add_node(\"billing\", billing)\nouter.add_edge(START, \"support\")\nouter.add_edge(\"billing\", END)\ngraph = outer.compile()\n\nprint(graph.invoke({\"log\": [\"start\"]})[\"log\"])  # ③\nedges = [(edge.source, edge.target) for edge in graph.get_graph().edges]\nprint(sorted(edges))  # ④\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['start', 'support: pass to billing', 'billing: refund noted']"
+  },
+  {
+   "kind": "stdout",
+   "text": "[('__start__', 'support'), ('billing', '__end__'), ('support', 'billing')]"
+  }
+ ]
+}

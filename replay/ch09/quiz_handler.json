@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:22:09+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: an error handler on a node that has no retry policy.\nBook: Chapter 9, section 9.5\nRun: python ch09/quiz_handler.py\n\"\"\"\n# region: quiz\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.errors import NodeError\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command\n\n\nclass State(TypedDict):\n    log: Annotated[list, operator.add]\n\n\ndef charge(state: State) -> dict:\n    raise ValueError(\"card declined\")\n\n\ndef recover(state: State, error: NodeError) -> Command:\n    note = f\"{error.node}: {error.error}\"\n    return Command(update={\"log\": [note]}, goto=\"ask_customer\")\n\n\ndef ask_customer(state: State) -> dict:\n    return {\"log\": [\"asked for another card\"]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"charge\", charge, error_handler=recover)\nbuilder.add_node(\"ask_customer\", ask_customer)\nbuilder.add_edge(START, \"charge\")\nbuilder.add_edge(\"ask_customer\", END)\nresult = builder.compile().invoke({\"log\": [\"order received\"]})\nprint(result[\"log\"])\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['order received', 'charge: card declined', 'asked for another card']"
+  }
+ ]
+}

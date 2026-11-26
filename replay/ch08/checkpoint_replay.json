@@ -1,0 +1,86 @@
+{
+ "version": 1,
+ "lesson": "08-time-travel",
+ "recordedAt": "2026-11-24T03:15:56+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Checkpoint replay: run again from an older checkpoint; the model is called again.\nBook: Chapter 8, section 8.3\nRun: python ch08/checkpoint_replay.py   (or OFFLINE=1 python ch08/checkpoint_replay.py)\n\"\"\"\nimport operator\nfrom typing import Annotated, Literal, TypedDict\n\n# region: real_model\nfrom common import get_model  # the helper from chapter 0\n\nmodel = get_model()  # ①\n# endregion\n\n\nclass State(TypedDict):\n    email: str\n    category: str\n    notes: Annotated[list, operator.add]\n    reply: str\n\n\ndef classify(state: State) -> dict:\n    found = \"refund\" in state[\"email\"].lower()  # ①\n    return {\"category\": \"billing\" if found else \"general\",\n            \"notes\": [\"classified\"]}\n\n\ndef route(state: State) -> Literal[\"draft\", \"escalate\"]:\n    return \"escalate\" if state[\"category\"] == \"billing\" else \"draft\"\n\n\ndef draft(state: State) -> dict:\n    print(\"draft runs\")\n    prompt = f\"Reply in two sentences to: {state['email']}\"\n    reply = model.invoke(prompt).content  # ②\n    return {\"reply\": reply, \"notes\": [\"drafted\"]}\n\n\ndef send(state: State) -> dict:\n    print(\"SENT\")  # stands for the mail service\n    return {\"notes\": [\"sent\"]}\n\n\ndef escalate(state: State) -> dict:\n    print(\"ESCALATED\")  # hands the ticket to a person\n    return {\"notes\": [\"passed to a person\"]}\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_node(\"draft\", draft)\nbuilder.add_node(\"send\", send)\nbuilder.add_node(\"escalate\", escalate)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_conditional_edges(\"classify\", route)  # ①\nbuilder.add_edge(\"draft\", \"send\")\nbuilder.add_edge(\"send\", END)\nbuilder.add_edge(\"escalate\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}  # ②\nticket = {\"email\": \"I was charged twice for order A17.\", \"notes\": []}\nresult = graph.invoke(ticket, config)\nprint(result[\"category\"], result[\"notes\"])\n\n# region: replay\nhistory = list(graph.get_state_history(config))\nbefore_draft = next(snapshot for snapshot in history\n                    if snapshot.next == (\"draft\",))\nprint(\"--- run again from the copy before draft\")\nresult = graph.invoke(None, before_draft.config)  # ①\nprint(result[\"category\"], result[\"notes\"])\nfor snapshot in graph.get_state_history(config):  # ②\n    print(snapshot.metadata[\"step\"], snapshot.metadata[\"source\"],\n          snapshot.next)\nnewest = graph.get_state(config)  # ③\nprint(\"get_state:\", newest.metadata[\"step\"],\n      newest.metadata[\"source\"], newest.next)\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I\\u2019m sorry you were charged twice for order A17. I\\u2019ll have the duplicate charge reviewed and refunded, so please allow a few business days for it to appear.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer in two sentences to customer complaint. Need acknowledge double charge and action. Since no tools. Need concise, two sentences. Maybe \\\"I\\u2019m sorry you were charged twice for order A17. I\\u2019ll have the duplicate charge reviewed and refunded; please allow a few business days for it to appear.\\\" Must be two sentences. Ensure not promise if cannot? It's a reply. Could say \\\"Please confirm...\\\" Hmm. Need likely support reply. Two sentences exactly.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 137, \"prompt_tokens\": 45, \"total_tokens\": 182, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 99, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 45}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"15bed1a7-4d53-49df-90d2-0af7d1b34e40\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b8d-7621-738a-9cc7-7e19eeb6074e-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 45, \"output_tokens\": 137, \"total_tokens\": 182, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 99}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I\\u2019m sorry you were charged twice for order A17. Please send the two charge dates and amounts so we can investigate and process any eligible refund promptly.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer two sentences. Need reply to charged twice order A17. Need likely acknowledge and ask for details? \\\"I'm sorry about the duplicate charge on order A17. Please send us the two charge dates/amounts and we'll investigate/refund promptly.\\\" Two sentences. Ensure concise.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 94, \"prompt_tokens\": 45, \"total_tokens\": 139, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 61, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 45}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"846c80ea-64a7-4d69-b931-488fd892c3ce\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b8d-8790-75b0-8ea3-c41a763664c7-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 45, \"output_tokens\": 94, \"total_tokens\": 139, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 61}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "draft runs"
+  },
+  {
+   "kind": "stdout",
+   "text": "SENT"
+  },
+  {
+   "kind": "stdout",
+   "text": "general ['classified', 'drafted', 'sent']"
+  },
+  {
+   "kind": "stdout",
+   "text": "--- run again from the copy before draft"
+  },
+  {
+   "kind": "stdout",
+   "text": "draft runs"
+  },
+  {
+   "kind": "stdout",
+   "text": "SENT"
+  },
+  {
+   "kind": "stdout",
+   "text": "general ['classified', 'drafted', 'sent']"
+  },
+  {
+   "kind": "stdout",
+   "text": "4 loop ()"
+  },
+  {
+   "kind": "stdout",
+   "text": "3 loop ('send',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "2 fork ('draft',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "3 loop ()"
+  },
+  {
+   "kind": "stdout",
+   "text": "2 loop ('send',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "1 loop ('draft',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "0 loop ('classify',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "-1 input ('__start__',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "get_state: 4 loop ()"
+  }
+ ]
+}

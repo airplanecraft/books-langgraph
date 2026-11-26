@@ -1,0 +1,50 @@
+{
+ "version": 1,
+ "lesson": "07-asking-before-acting",
+ "recordedAt": "2026-11-24T02:54:54+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Two interrupts in one node: each resume value goes to the next interrupt.\nBook: Chapter 7, section 7.8\nRun: python ch07/two_questions.py\n\"\"\"\n# region: two\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, interrupt\n\n\nclass State(TypedDict):\n    answers: list\n\n\ndef collect(state: State) -> dict:\n    print(\"collect starts\")\n    order = interrupt(\"Which order?\")  # ①\n    print(\"first answer:\", order)\n    reason = interrupt(\"Which reason?\")  # ②\n    print(\"second answer:\", reason)\n    return {\"answers\": [order, reason]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"collect\", collect)\nbuilder.add_edge(START, \"collect\")\nbuilder.add_edge(\"collect\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\nresult = graph.invoke({\"answers\": []}, config)\nprint(\"asked:\", result[\"__interrupt__\"][0].value)\nresult = graph.invoke(Command(resume=\"B42\"), config)  # ③\nprint(\"asked:\", result[\"__interrupt__\"][0].value)\nresult = graph.invoke(Command(resume=\"late\"), config)  # ④\nprint(\"final:\", result[\"answers\"])\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "collect starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "asked: Which order?"
+  },
+  {
+   "kind": "stdout",
+   "text": "collect starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "first answer: B42"
+  },
+  {
+   "kind": "stdout",
+   "text": "asked: Which reason?"
+  },
+  {
+   "kind": "stdout",
+   "text": "collect starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "first answer: B42"
+  },
+  {
+   "kind": "stdout",
+   "text": "second answer: late"
+  },
+  {
+   "kind": "stdout",
+   "text": "final: ['B42', 'late']"
+  }
+ ]
+}

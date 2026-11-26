@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "00-foundations",
+ "recordedAt": "2026-11-23T23:10:01+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The same round with the stand-in model: scripted replies, no network, no cost.\nBook: Chapter 0, section 0.6\nRun: python ch00/stand_in.py   (no key needed, with or without OFFLINE=1)\n\"\"\"\n# region: stand_in\nfrom langchain_core.messages import ToolMessage\nfrom langchain_core.tools import tool\n\nfrom common import ScriptedModel, ask_for, say\n\nORDERS = {\"A17\": \"shipped on 18 November\", \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n\nmodel = ScriptedModel(script=[  # ①\n    ask_for(\"lookup_order\", {\"order_id\": \"A17\"}),\n    say(\"Order A17 shipped on 18 November.\"),\n])\nmodel = model.bind_tools([lookup_order])  # ②\nmessages = [{\"role\": \"user\", \"content\": \"Where is my order A17?\"}]\nfirst_reply = model.invoke(messages)\ncall = first_reply.tool_calls[0]\nprint(\"tool calls:\", first_reply.tool_calls)\nresult = lookup_order.invoke(call[\"args\"])\nprint(\"tool result:\", result)\ntool_message = ToolMessage(content=result, tool_call_id=call[\"id\"])\nanswer = model.invoke(messages + [first_reply, tool_message])\nprint(\"tools offered:\", model.tools_offered)  # ③\nprint(\"answer:\", answer.content)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool calls: [{'name': 'lookup_order', 'args': {'order_id': 'A17'}, 'id': 'call_1', 'type': 'tool_call'}]"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool result: shipped on 18 November"
+  },
+  {
+   "kind": "stdout",
+   "text": "tools offered: ['lookup_order']"
+  },
+  {
+   "kind": "stdout",
+   "text": "answer: Order A17 shipped on 18 November."
+  }
+ ]
+}

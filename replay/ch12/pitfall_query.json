@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:23:01+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A store without an embedding index ignores query= in a search.\nBook: Chapter 12, section 12.8\nRun: python ch12/pitfall_query.py\n\"\"\"\n# region: query\nfrom langgraph.store.memory import InMemoryStore\n\nstore = InMemoryStore()\nstore.put((\"users\", \"ana\"), \"prefs\", {\"tone\": \"short\"})\nstore.put((\"users\", \"ana\"), \"address\", {\"city\": \"Lyon\"})\n\nfound = store.search((\"users\", \"ana\"), query=\"where does she live?\")  # ①\nprint([(item.key, item.score) for item in found])  # ②\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "[('prefs', None), ('address', None)]"
+  }
+ ]
+}

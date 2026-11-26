@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:06+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: a shared key with operator.add, a subgraph that adds one tag.\nBook: Chapter 11, section 11.2\nRun: python ch11/quiz_double.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import START, StateGraph\n\n\nclass Tags(TypedDict):\n    tags: Annotated[list[str], operator.add]\n\n\ndef label(state: Tags) -> dict:\n    return {\"tags\": [\"b\"]}\n\n\ninner = StateGraph(Tags)\ninner.add_node(\"label\", label)\ninner.add_edge(START, \"label\")\nouter = StateGraph(Tags)\nouter.add_node(\"lookup\", inner.compile())\nouter.add_edge(START, \"lookup\")\nprint(outer.compile().invoke({\"tags\": [\"a\"]})[\"tags\"])\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['a', 'a', 'b']"
+  }
+ ]
+}

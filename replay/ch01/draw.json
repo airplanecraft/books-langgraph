@@ -1,0 +1,90 @@
+{
+ "version": 1,
+ "lesson": "01-your-first-graph",
+ "recordedAt": "2026-11-23T23:22:04+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"List the nodes and edges of the graph and print it as Mermaid text.\nBook: Chapter 1, section 1.5\nRun: python ch01/draw.py\n\"\"\"\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    body: str\n    category: str\n    reply: str\n\n\ndef classify(state: State) -> dict:\n    category = \"billing\" if \"charged\" in state[\"body\"] else \"other\"\n    return {\"category\": category}\n\n\ndef draft(state: State) -> dict:\n    name, topic = state[\"customer\"], state[\"category\"]\n    return {\"reply\": f\"Hi {name}, we are checking your {topic} question.\"}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"draft\", draft)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_edge(\"classify\", \"draft\")\nbuilder.add_edge(\"draft\", END)\ngraph = builder.compile()\n\n# region: draw\ndrawing = graph.get_graph()  # ①\nprint(list(drawing.nodes))  # ②\nprint([(edge.source, edge.target) for edge in drawing.edges])  # ③\nprint(drawing.draw_mermaid())  # ④\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['__start__', 'draft', 'classify', '__end__']"
+  },
+  {
+   "kind": "stdout",
+   "text": "[('__start__', 'classify'), ('classify', 'draft'), ('draft', '__end__')]"
+  },
+  {
+   "kind": "stdout",
+   "text": "---"
+  },
+  {
+   "kind": "stdout",
+   "text": "config:"
+  },
+  {
+   "kind": "stdout",
+   "text": "  flowchart:"
+  },
+  {
+   "kind": "stdout",
+   "text": "    curve: linear"
+  },
+  {
+   "kind": "stdout",
+   "text": "---"
+  },
+  {
+   "kind": "stdout",
+   "text": "graph TD;"
+  },
+  {
+   "kind": "stdout",
+   "text": "\t__start__([<p>__start__</p>]):::first"
+  },
+  {
+   "kind": "stdout",
+   "text": "\tdraft(draft)"
+  },
+  {
+   "kind": "stdout",
+   "text": "\tclassify(classify)"
+  },
+  {
+   "kind": "stdout",
+   "text": "\t__end__([<p>__end__</p>]):::last"
+  },
+  {
+   "kind": "stdout",
+   "text": "\t__start__ --> classify;"
+  },
+  {
+   "kind": "stdout",
+   "text": "\tclassify --> draft;"
+  },
+  {
+   "kind": "stdout",
+   "text": "\tdraft --> __end__;"
+  },
+  {
+   "kind": "stdout",
+   "text": "\tclassDef default fill:#f2f0ff,line-height:1.2"
+  },
+  {
+   "kind": "stdout",
+   "text": "\tclassDef first fill-opacity:0"
+  },
+  {
+   "kind": "stdout",
+   "text": "\tclassDef last fill:#bfb6fc"
+  },
+  {
+   "kind": "stdout",
+   "text": ""
+  }
+ ]
+}

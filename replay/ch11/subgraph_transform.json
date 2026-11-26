@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:57+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A subgraph with other keys: call it inside a node and translate both ways.\nBook: Chapter 11, section 11.3\nRun: python ch11/subgraph_transform.py\n\"\"\"\n# region: wrap\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass OrderState(TypedDict):\n    order_id: str\n    status: str\n\n\ndef find(state: OrderState) -> dict:\n    return {\"status\": \"delayed\"}  # stands for a lookup\n\n\ninner = StateGraph(OrderState)\ninner.add_node(\"find\", find)\ninner.add_edge(START, \"find\")\norders_graph = inner.compile()\n\n\nclass Ticket(TypedDict):\n    customer: str\n    order_ref: str  # ①\n    notes: Annotated[list[str], operator.add]\n\n\ndef ask_orders(state: Ticket) -> dict:\n    answer = orders_graph.invoke({\"order_id\": state[\"order_ref\"]})  # ②\n    return {\"notes\": [f\"{state['order_ref']}: {answer['status']}\"]}  # ③\n\n\nouter = StateGraph(Ticket)\nouter.add_node(\"ask_orders\", ask_orders)\nouter.add_edge(START, \"ask_orders\")\nouter.add_edge(\"ask_orders\", END)\ngraph = outer.compile()\n\nticket = {\"customer\": \"Ana\", \"order_ref\": \"B42\", \"notes\": [\"start\"]}\nprint(graph.invoke(ticket))  # ④\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'customer': 'Ana', 'order_ref': 'B42', 'notes': ['start', 'B42: delayed']}"
+  }
+ ]
+}

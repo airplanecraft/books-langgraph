@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:48:17+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A retry policy on a node: the node runs again after a ConnectionError.\nBook: Chapter 9, section 9.3\nRun: python ch09/retry.py\n\"\"\"\n# region: server\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import RetryPolicy\n\n\nclass State(TypedDict):\n    notes: Annotated[list, operator.add]\n\n\nclass MailServer:\n    \"\"\"A toy mail server that fails its first `failures` calls.\"\"\"\n\n    def __init__(self, failures: int) -> None:\n        self.failures = failures\n        self.attempts = 0\n\n    def send(self) -> str:\n        self.attempts += 1\n        if self.attempts <= self.failures:\n            raise ConnectionError(\"mail server unreachable\")\n        return \"sent the reply\"\n# endregion\n\n\n# region: policy\ndef run(failures: int) -> None:\n    server = MailServer(failures)\n\n    def send(state: State) -> dict:\n        return {\"notes\": [server.send()]}\n\n    policy = RetryPolicy(max_attempts=3, initial_interval=0.01, jitter=False)\n    builder = StateGraph(State)\n    builder.add_node(\"send\", send, retry_policy=policy)  # ①\n    builder.add_edge(START, \"send\")\n    builder.add_edge(\"send\", END)\n    graph = builder.compile()\n    try:\n        print(\"result:\", graph.invoke({\"notes\": []})[\"notes\"])\n    except ConnectionError as error:  # ②\n        print(\"invoke raised:\", error)\n    print(\"attempts:\", server.attempts)  # ③\n\n\nrun(failures=2)\nrun(failures=5)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "result: ['sent the reply']"
+  },
+  {
+   "kind": "stdout",
+   "text": "attempts: 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "invoke raised: mail server unreachable"
+  },
+  {
+   "kind": "stdout",
+   "text": "attempts: 3"
+  }
+ ]
+}

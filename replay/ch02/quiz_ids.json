@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "02-state-reducers",
+ "recordedAt": "2026-11-23T15:14:57+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: add_messages with one known id and one new id.\nBook: Chapter 2, section 2.4\nRun: python ch02/quiz_ids.py\n\"\"\"\nfrom langchain_core.messages import AIMessage, HumanMessage\nfrom langgraph.graph.message import add_messages\n\n# region: ids\nleft = [HumanMessage(\"x\", id=\"m1\"), AIMessage(\"y\", id=\"m2\")]\nright = [AIMessage(\"z\", id=\"m1\"), AIMessage(\"w\", id=\"m3\")]\nprint([(m.id, m.content) for m in add_messages(left, right)])\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "[('m1', 'z'), ('m2', 'y'), ('m3', 'w')]"
+  }
+ ]
+}

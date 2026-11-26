@@ -1,0 +1,54 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:05+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Two agents as subgraphs; the support agent hands the conversation to billing.\nBook: Chapter 11, section 11.6\nRun: python ch11/handoff.py\n\"\"\"\n# region: agent\nfrom langchain_core.messages import SystemMessage\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\n\ndef build_agent(name: str, model: object, tools: list,\n                role: str = \"\") -> object:\n    def call_model(state: MessagesState) -> dict:\n        history = state[\"messages\"]\n        print(f\"  {name} reads\", [message.type for message in history])  # ①\n        if role:\n            history = [SystemMessage(role)] + history  # ②\n        return {\"messages\": [model.invoke(history)]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", tools_condition)\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile()\n# endregion\n\n\n# region: tools\nfrom langchain_core.messages import ToolMessage\nfrom langchain_core.tools import tool\nfrom langgraph.prebuilt import ToolRuntime\nfrom langgraph.types import Command\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return {\"A17\": \"shipped on 18 November\"}.get(order_id, \"unknown\")\n\n\n@tool\ndef refund_order(order_id: str) -> str:\n    \"\"\"Start the refund of an order by its ID.\"\"\"\n    return f\"refund started for {order_id}\"\n\n\n@tool\ndef transfer_to_billing(runtime: ToolRuntime) -> Command:  # ①\n    \"\"\"Pass the customer to the billing agent, for refunds and invoices.\"\"\"\n    request = runtime.state[\"messages\"][-1]  # ②\n    answer = ToolMessage(\"Passed to billing.\",\n                         tool_call_id=runtime.tool_call_id)\n    return Command(graph=Command.PARENT, goto=\"billing\",  # ③\n                   update={\"messages\": [request, answer]})  # ④\n# endregion\n\n\n# region: team\nfrom langgraph.graph import END\n\nfrom common import ScriptedModel, ask_for, say  # the stand-in of chapter 0\n\nsupport_tools = [lookup_order, transfer_to_billing]\nsupport_script = [ask_for(\"lookup_order\", {\"order_id\": \"A17\"}, \"call_1\"),\n                  ask_for(\"transfer_to_billing\", {}, \"call_2\")]\nsupport = build_agent(\n    \"support\", ScriptedModel(script=support_script).bind_tools(support_tools),\n    support_tools)  # ①\nbilling_script = [ask_for(\"refund_order\", {\"order_id\": \"A17\"}, \"call_3\"),\n                  say(\"Your refund for A17 is on its way.\")]\nbilling_model = ScriptedModel(script=billing_script)\nbilling_model = billing_model.bind_tools([refund_order])\nbilling = build_agent(\"billing\", billing_model, [refund_order])\n\nouter = StateGraph(MessagesState)\nouter.add_node(\"support\", support, destinations=(\"billing\",))  # ②\nouter.add_node(\"billing\", billing)\nouter.add_edge(START, \"support\")\nouter.add_edge(\"billing\", END)\ngraph = outer.compile()\n\nquestion = {\"role\": \"user\", \"content\": \"Please refund my order A17.\"}\nresult = graph.invoke({\"messages\": [question]})\nfor message in result[\"messages\"]:  # ③\n    shown = message.content or message.tool_calls[0][\"name\"]\n    print(message.type, \"|\", shown)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "  support reads ['human']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  support reads ['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  billing reads ['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  billing reads ['human', 'ai', 'tool', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "human | Please refund my order A17."
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | transfer_to_billing"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool | Passed to billing."
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | refund_order"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool | refund started for A17"
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | Your refund for A17 is on its way."
+  }
+ ]
+}

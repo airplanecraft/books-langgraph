@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "05-persistence",
+ "recordedAt": "2026-11-24T01:26:39+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A thread id on a graph that has no checkpointer: ignored, and get_state refuses.\nBook: Chapter 5, section 5.7\nRun: python ch05/no_saver.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list, operator.add]\n\n\n# region: no_saver\ndef read(state: State) -> dict:\n    return {\"notes\": [\"read the email\"]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"read\", read)\nbuilder.add_edge(START, \"read\")\nbuilder.add_edge(\"read\", END)\nplain = builder.compile()  # ①\nticket = {\"customer\": \"Ana\", \"notes\": []}\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\nplain.invoke(ticket, config)  # ②\nsecond = plain.invoke({\"notes\": [\"email 2\"]}, config)\nprint(\"notes:\", second[\"notes\"])\ntry:\n    plain.get_state(config)  # ③\nexcept ValueError as error:\n    print(\"get_state:\", error)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "notes: ['email 2', 'read the email']"
+  },
+  {
+   "kind": "stdout",
+   "text": "get_state: No checkpointer set"
+  }
+ ]
+}

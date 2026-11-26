@@ -1,0 +1,12 @@
+[project]
+name = "books-langgraph"
+version = "2026.11"
+description = "Code for the book LangGraph, Step by Step"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+py-modules = ["common"]
+packages = ["replay"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

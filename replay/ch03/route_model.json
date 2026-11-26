@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:16:22+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The model classifies the email; a conditional edge reads its answer.\nBook: Chapter 3, section 3.1\nRun: python ch03/route_model.py   (or OFFLINE=1 python ch03/route_model.py)\n\"\"\"\nfrom typing import Literal, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    body: str\n    category: str\n    reply: str\n\n\n# region: classify\nfrom common import get_model  # the helper from chapter 0\n\nmodel = get_model()\n\n\ndef classify(state: State) -> dict:\n    question = (\"Is this email about billing or about something else? \"\n                \"Answer with one word, billing or other.\\n\\n\" + state[\"body\"])\n    answer = model.invoke([{\"role\": \"user\", \"content\": question}])  # ①\n    category = \"billing\" if \"billing\" in answer.content.lower() else \"other\"\n    return {\"category\": category}  # ②\n# endregion\n\n\ndef route(state: State) -> Literal[\"billing_reply\", \"general_reply\"]:\n    if state[\"category\"] == \"billing\":\n        return \"billing_reply\"\n    return \"general_reply\"\n\n\ndef billing_reply(state: State) -> dict:\n    return {\"reply\": f\"Hi {state['customer']}, we are checking the charge.\"}\n\n\ndef general_reply(state: State) -> dict:\n    return {\"reply\": f\"Hi {state['customer']}, thanks for your email.\"}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_node(\"billing_reply\", billing_reply)\nbuilder.add_node(\"general_reply\", general_reply)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_conditional_edges(\"classify\", route)\nbuilder.add_edge(\"billing_reply\", END)\nbuilder.add_edge(\"general_reply\", END)\ngraph = builder.compile()\n\nemails = [\n    {\"customer\": \"Ana\", \"body\": \"I was charged twice for order B42.\"},\n    {\"customer\": \"Ben\", \"body\": \"Where is my parcel?\"},\n]\nfor email in emails:\n    ticket = {**email, \"category\": \"unknown\", \"reply\": \"\"}\n    result = graph.invoke(ticket)\n    print(result[\"category\"], \"|\", result[\"reply\"])\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"billing\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer one word billing or other. Email about charged twice order = billing. Need just word.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 24, \"prompt_tokens\": 58, \"total_tokens\": 82, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 21, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 58}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"f586ada1-0644-4621-a687-8f8fd12db575\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20ae9-1ab5-7453-a0f0-eab54fe88126-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 58, \"output_tokens\": 24, \"total_tokens\": 82, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 21}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"other\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer one word. Email asks \\\"Where is my parcel?\\\" about parcel, not billing. Answer other. Need only one word.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 30, \"prompt_tokens\": 54, \"total_tokens\": 84, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 28, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 54}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"86a335a4-2b03-487d-b0d3-130dfd810380\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20ae9-27c7-7051-92b2-507ac637ed7d-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 54, \"output_tokens\": 30, \"total_tokens\": 84, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 28}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "billing | Hi Ana, we are checking the charge."
+  },
+  {
+   "kind": "stdout",
+   "text": "other | Hi Ben, thanks for your email."
+  }
+ ]
+}

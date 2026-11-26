@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:22:08+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Two mistakes with an error handler: no goto, and a parameter with the wrong name.\nBook: Chapter 9, section 9.7\nRun: python ch09/pitfall_handler.py\n\"\"\"\n# region: handler\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.errors import NodeError\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command\n\n\nclass State(TypedDict):\n    notes: Annotated[list, operator.add]\n\n\ndef send(state: State) -> dict:\n    raise ConnectionError(\"mail server unreachable\")\n\n\ndef no_goto(state: State, error: NodeError) -> Command:\n    return Command(update={\"notes\": [\"send failed\"]})  # ①\n\n\ndef wrong_name(state: State, err: NodeError) -> Command:  # ②\n    return Command(update={\"notes\": [\"send failed\"]})\n\n\ndef run(handler: object) -> None:\n    builder = StateGraph(State)\n    builder.add_node(\"send\", send, error_handler=handler)\n    builder.add_node(\"close\", lambda state: {\"notes\": [\"closed\"]})\n    builder.add_edge(START, \"send\")\n    builder.add_edge(\"send\", \"close\")\n    builder.add_edge(\"close\", END)\n    try:\n        graph = builder.compile()\n        print(graph.invoke({\"notes\": [\"read the email\"]})[\"notes\"])\n    except TypeError as error:  # ③\n        print(\"TypeError:\", error)\n\n\nrun(no_goto)\nrun(wrong_name)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['read the email', 'send failed']"
+  },
+  {
+   "kind": "stdout",
+   "text": "TypeError: wrong_name() missing 1 required positional argument: 'err'"
+  }
+ ]
+}

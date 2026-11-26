@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "02-state-reducers",
+ "recordedAt": "2026-11-23T15:31:53+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Show two mistakes with a reducer key, and Overwrite to clear one.\nBook: Chapter 2, section 2.6\nRun: python ch02/pitfalls.py\n\"\"\"\n# region: duplicate\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Overwrite\n\n\nclass State(TypedDict):\n    notes: Annotated[list[str], operator.add]\n\n\ndef whole_list(state: State) -> dict:\n    return {\"notes\": state[\"notes\"] + [\"drafted\"]}  # ①\n\n\ndef only_new(state: State) -> dict:\n    return {\"notes\": [\"drafted\"]}  # ②\n\n\ndef clear(state: State) -> dict:\n    return {\"notes\": []}  # ③\n\n\ndef clear_all(state: State) -> dict:\n    return {\"notes\": Overwrite([])}  # ④\n\n\nfor node in (whole_list, only_new, clear, clear_all):\n    builder = StateGraph(State)\n    builder.add_node(\"node\", node)\n    builder.add_edge(START, \"node\")\n    builder.add_edge(\"node\", END)\n    print(node.__name__, builder.compile().invoke({\"notes\": [\"received\"]}))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "whole_list {'notes': ['received', 'received', 'drafted']}"
+  },
+  {
+   "kind": "stdout",
+   "text": "only_new {'notes': ['received', 'drafted']}"
+  },
+  {
+   "kind": "stdout",
+   "text": "clear {'notes': ['received']}"
+  },
+  {
+   "kind": "stdout",
+   "text": "clear_all {'notes': []}"
+  }
+ ]
+}

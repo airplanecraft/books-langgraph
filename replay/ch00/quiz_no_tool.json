@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "00-foundations",
+ "recordedAt": "2026-11-23T22:51:15+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Backs a self-check question: a reply with no tool call has an empty tool_calls list.\nBook: Chapter 0, section 0.4\nRun: python ch00/quiz_no_tool.py   (no key needed)\n\"\"\"\n# region: quiz\nfrom common import ScriptedModel, ask_for, say\n\nmodel = ScriptedModel(script=[\n    say(\"Hello! How can I help?\"),\n    ask_for(\"lookup_order\", {\"order_id\": \"B42\"}),\n])\nfor number in (1, 2):\n    reply = model.invoke([{\"role\": \"user\", \"content\": \"Hi\"}])\n    print(number, repr(reply.content), reply.tool_calls)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "1 'Hello! How can I help?' []"
+  },
+  {
+   "kind": "stdout",
+   "text": "2 '' [{'name': 'lookup_order', 'args': {'order_id': 'B42'}, 'id': 'call_1', 'type': 'tool_call'}]"
+  }
+ ]
+}

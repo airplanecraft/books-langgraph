@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "06-streaming",
+ "recordedAt": "2026-11-24T01:33:28+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Mistake: leaving the loop early stops the run\nBook: Chapter 6, section 6.6\nRun: python ch06/pitfall_early.py\n\"\"\"\n# region: pitfall_early\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\nran = []  # the names of the nodes that finished\n\n\nclass State(TypedDict):\n    count: int\n\n\ndef first(state: State) -> dict:\n    ran.append(\"first\")\n    return {\"count\": state[\"count\"] + 1}\n\n\ndef second(state: State) -> dict:\n    ran.append(\"second\")\n    return {\"count\": state[\"count\"] + 1}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"first\", first)\nbuilder.add_node(\"second\", second)\nbuilder.add_edge(START, \"first\")\nbuilder.add_edge(\"first\", \"second\")\nbuilder.add_edge(\"second\", END)\ngraph = builder.compile()\n\nfor stop in (True, False):\n    ran.clear()\n    for update in graph.stream({\"count\": 0}, stream_mode=\"updates\"):  # ①\n        if stop:\n            break  # ②\n    print(\"stopped early:\", stop, \"| nodes that ran:\", ran)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "stopped early: True | nodes that ran: ['first']"
+  },
+  {
+   "kind": "stdout",
+   "text": "stopped early: False | nodes that ran: ['first', 'second']"
+  }
+ ]
+}

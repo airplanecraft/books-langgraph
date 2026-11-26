@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:23+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A reducer lets two parallel nodes write one key; the notes come out in name order in these runs.\nBook: Chapter 10, section 10.3\nRun: python ch10/merge_order.py\n\"\"\"\nimport operator\nfrom typing import Annotated, Callable, TypedDict\n\nfrom langchain_core.runnables import RunnableConfig\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.graph.state import CompiledStateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list[str], operator.add]\n\n\ndef make_step(label: str) -> Callable[[State, RunnableConfig], dict]:\n    def step(state: State, config: RunnableConfig) -> dict:\n        number = config[\"metadata\"][\"langgraph_step\"]\n        seen = len(state[\"notes\"])\n        note = f\"{label}: super-step {number}, notes seen {seen}\"\n        return {\"notes\": [note]}\n\n    return step\n\n\n# region: merge\ndef build(first: str, second: str) -> CompiledStateGraph:\n    builder = StateGraph(State)\n    for label in (\"read\", \"draft\", first, second):  # ①\n        builder.add_node(label, make_step(label))\n    builder.add_edge(START, \"read\")\n    for label in (first, second):\n        builder.add_edge(\"read\", label)\n        builder.add_edge(label, \"draft\")\n    builder.add_edge(\"draft\", END)\n    return builder.compile()\n\n\nfor names in ((\"plan\", \"order\"), (\"order\", \"plan\")):\n    result = build(*names).invoke({\"customer\": \"Ana\", \"notes\": []})\n    print(names, [note.split(\":\")[0] for note in result[\"notes\"]])  # ②\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "('plan', 'order') ['read', 'order', 'plan', 'draft']"
+  },
+  {
+   "kind": "stdout",
+   "text": "('order', 'plan') ['read', 'order', 'plan', 'draft']"
+  }
+ ]
+}

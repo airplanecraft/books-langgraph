@@ -1,0 +1,62 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:17+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The support agent and the billing agent with the real model.\nBook: Chapter 11, section 11.8\nRun: python ch11/handoff_real.py   (or OFFLINE=1 python ch11/handoff_real.py)\n\"\"\"\nfrom langchain_core.messages import SystemMessage, ToolMessage\nfrom langchain_core.tools import tool\nfrom langgraph.graph import END, START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, ToolRuntime, tools_condition\nfrom langgraph.types import Command\n\nfrom common import get_model\n\n\ndef build_agent(name: str, model: object, tools: list,\n                role: str = \"\") -> object:\n    def call_model(state: MessagesState) -> dict:\n        history = state[\"messages\"]\n        print(f\"  {name} reads\", [message.type for message in history])  # ①\n        if role:\n            history = [SystemMessage(role)] + history  # ②\n        return {\"messages\": [model.invoke(history)]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", tools_condition)\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile()\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return {\"A17\": \"shipped on 18 November\"}.get(order_id, \"unknown\")\n\n\n@tool\ndef refund_order(order_id: str) -> str:\n    \"\"\"Start the refund of an order by its ID.\"\"\"\n    return f\"refund started for {order_id}\"\n\n\n@tool\ndef transfer_to_billing(runtime: ToolRuntime) -> Command:  # ①\n    \"\"\"Pass the customer to the billing agent, for refunds and invoices.\"\"\"\n    request = runtime.state[\"messages\"][-1]  # ②\n    answer = ToolMessage(\"Passed to billing.\",\n                         tool_call_id=runtime.tool_call_id)\n    return Command(graph=Command.PARENT, goto=\"billing\",  # ③\n                   update={\"messages\": [request, answer]})  # ④\n\n\n# region: real\nsupport_tools = [transfer_to_billing]\nbilling_tools = [refund_order]\nsupport = build_agent(\n    \"support\", get_model().bind_tools(support_tools), support_tools,\n    \"You are the support agent. Refunds belong to the billing agent.\")  # ①\nbilling = build_agent(\n    \"billing\", get_model().bind_tools(billing_tools), billing_tools,\n    \"You are the billing agent. Start refunds with refund_order.\")\n\nouter = StateGraph(MessagesState)\nouter.add_node(\"support\", support, destinations=(\"billing\",))\nouter.add_node(\"billing\", billing)\nouter.add_edge(START, \"support\")\nouter.add_edge(\"billing\", END)\ngraph = outer.compile()\n\ntext = \"I was charged twice for order A17. Please refund it.\"\nquestion = {\"role\": \"user\", \"content\": text}\nlimit = {\"recursion_limit\": 10}  # ②\nresult = graph.invoke({\"messages\": [question]}, limit)\nfor message in result[\"messages\"]:  # ③\n    calls = [call[\"name\"] for call in getattr(message, \"tool_calls\", [])]\n    print(message.type, calls)\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"The user wants a refund for a double charge. Refunds belong to the billing agent. I should transfer to billing.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 48, \"prompt_tokens\": 309, \"total_tokens\": 357, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 24, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 309}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"ad6f33c2-a76a-46bd-afa0-6a88d679e584\", \"finish_reason\": \"tool_calls\", \"logprobs\": null, \"normalized_finish_reason\": \"tool_call\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b92-51b0-7717-8955-a8100e32dc4c-0\", \"tool_calls\": [{\"name\": \"transfer_to_billing\", \"args\": {}, \"id\": \"call_00_ywpolAISHHzbd0cBjDP80260\", \"type\": \"tool_call\"}], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 309, \"output_tokens\": 48, \"total_tokens\": 357, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 24}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"Now I'm the billing agent. The user says they were charged twice for order A17 and wants a refund. The instruction says \\\"Start refunds with refund_order.\\\" I should probably verify the order ID. A17 seems like a valid order ID. I should start the refund with refund_order.\\n\\nHowever, I should consider: a double charge means they were charged twice, so the refund should be for the duplicate charge. But there's no tool to look up orders or charge details. I only have refund_order. The policy: start refunds with refund_order.\\n\\nShould I just call refund_order for A17? That would refund the order. But if charged twice, refunding \\\"the order\\\" might refund one charge. That's what the user wants \\u2014 they want the duplicate charge refunded. There's no tool to inspect the charges. Hmm.\\n\\nThe guidance says start refunds with refund_order. So call it. But maybe I should confirm with the user? The user explicitly asked to refund it. I'll call refund_order for A17.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 254, \"prompt_tokens\": 384, \"total_tokens\": 638, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 213, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 384}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"dc1ae8c8-ade0-48b7-95c3-f4c9659f0b8a\", \"finish_reason\": \"tool_calls\", \"logprobs\": null, \"normalized_finish_reason\": \"tool_call\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b92-5fa9-734e-ae72-0722a92d9b28-0\", \"tool_calls\": [{\"name\": \"refund_order\", \"args\": {\"order_id\": \"A17\"}, \"id\": \"call_00_Brn5xQTA1iHx8va7dBGm0701\", \"type\": \"tool_call\"}], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 384, \"output_tokens\": 254, \"total_tokens\": 638, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 213}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I've started a refund for order A17. The refund is now processing.\\n\\nOne note: since you were charged twice, you may want to check with us again once the refund posts to confirm only the duplicate charge was returned and you're left with a single valid charge.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 56, \"prompt_tokens\": 656, \"total_tokens\": 712, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 0, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 512, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 512, \"prompt_cache_miss_tokens\": 144}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"f9940955-844a-44ec-852c-350eb7e1214e\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b92-6ee2-7186-a9fa-1a58f74351c8-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 656, \"output_tokens\": 56, \"total_tokens\": 712, \"input_token_details\": {\"cache_read\": 512}, \"output_token_details\": {\"reasoning\": 0}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "  support reads ['human']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  billing reads ['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  billing reads ['human', 'ai', 'tool', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "human []"
+  },
+  {
+   "kind": "stdout",
+   "text": "ai ['transfer_to_billing']"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool []"
+  },
+  {
+   "kind": "stdout",
+   "text": "ai ['refund_order']"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool []"
+  },
+  {
+   "kind": "stdout",
+   "text": "ai []"
+  }
+ ]
+}

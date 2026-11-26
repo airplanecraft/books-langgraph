@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "05-persistence",
+ "recordedAt": "2026-11-24T01:26:40+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: how many checkpoints a chain of three nodes leaves.\nBook: Chapter 5, section 5.3\nRun: python ch05/quiz_count.py\n\"\"\"\n# region: quiz\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n\n\ndef first(state: State) -> dict:\n    return {}\n\n\ndef second(state: State) -> dict:\n    return {}\n\n\ndef third(state: State) -> dict:\n    return {}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"first\", first)\nbuilder.add_node(\"second\", second)\nbuilder.add_node(\"third\", third)\nbuilder.add_edge(START, \"first\")\nbuilder.add_edge(\"first\", \"second\")\nbuilder.add_edge(\"second\", \"third\")\nbuilder.add_edge(\"third\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\nconfig = {\"configurable\": {\"thread_id\": \"t1\"}}\ngraph.invoke({\"customer\": \"Ana\"}, config)\nprint(len(list(graph.get_state_history(config))), \"checkpoints\")\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "5 checkpoints"
+  }
+ ]
+}

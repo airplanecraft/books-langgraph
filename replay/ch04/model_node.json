@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T00:40:32+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A graph with one node that calls a model which may ask for a tool.\nBook: Chapter 4, section 4.1\nRun: python ch04/model_node.py   (or OFFLINE=1 python ch04/model_node.py)\n\"\"\"\n# region: tool\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n# endregion\n\n# region: model_node\nfrom langgraph.graph import END, START, MessagesState, StateGraph\n\nfrom common import get_model  # the helper from chapter 0\n\nmodel = get_model().bind_tools([lookup_order])  # ①\n\n\ndef call_model(state: MessagesState) -> dict:\n    return {\"messages\": [model.invoke(state[\"messages\"])]}  # ②\n\n\nbuilder = StateGraph(MessagesState)\nbuilder.add_node(\"model\", call_model)\nbuilder.add_edge(START, \"model\")\nbuilder.add_edge(\"model\", END)\ngraph = builder.compile()\n\nquestion = {\"role\": \"user\", \"content\": \"Where is my order B42?\"}\nresult = graph.invoke({\"messages\": [question]})\nfor message in result[\"messages\"]:  # ③\n    print(message.type, \"|\", message.content)\n    if message.type == \"ai\":\n        calls = [(call[\"name\"], call[\"args\"]) for call in message.tool_calls]\n        print(\"tool calls:\", calls)\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I'll look that up for you.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 48, \"prompt_tokens\": 308, \"total_tokens\": 356, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 0, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 128, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 128, \"prompt_cache_miss_tokens\": 180}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"37a6820c-8b16-47ca-842d-efa92584de55\", \"finish_reason\": \"tool_calls\", \"logprobs\": null, \"normalized_finish_reason\": \"tool_call\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20aff-3b91-7332-92e9-7d8de5f45a2a-0\", \"tool_calls\": [{\"name\": \"lookup_order\", \"args\": {\"order_id\": \"B42\"}, \"id\": \"call_00_ET_JD4ZTEIxUOzjubW9iYwv4841\", \"type\": \"tool_call\"}], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 308, \"output_tokens\": 48, \"total_tokens\": 356, \"input_token_details\": {\"cache_read\": 128}, \"output_token_details\": {\"reasoning\": 0}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "human | Where is my order B42?"
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | I'll look that up for you."
+  },
+  {
+   "kind": "stdout",
+   "text": "tool calls: [('lookup_order', {'order_id': 'B42'})]"
+  }
+ ]
+}

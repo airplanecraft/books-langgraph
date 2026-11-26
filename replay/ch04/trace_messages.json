@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T01:02:33+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Watch the message list grow while the agent loop runs two rounds.\nBook: Chapter 4, section 4.6\nRun: python ch04/trace_messages.py\n\"\"\"\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n# region: helper\nfrom collections.abc import Callable\n\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\nfrom common import ScriptedModel  # the stand-in model of chapter 0\n\n\ndef build(script: list, tools: list, router: Callable = tools_condition,\n          verbose: bool = False) -> tuple:\n    model = ScriptedModel(script=script).bind_tools(tools)\n\n    def call_model(state: MessagesState) -> dict:\n        if verbose:\n            kinds = [message.type for message in state[\"messages\"]]\n            print(\"model node receives\", len(kinds), kinds)\n        return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", router)  # ①\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile(), model\n# endregion\n\n# region: trace\nfrom common import ask_for, say  # the helpers from chapter 0\n\nscript = [ask_for(\"lookup_order\", {\"order_id\": \"A17\"}, \"call_1\"),  # ①\n          ask_for(\"lookup_order\", {\"order_id\": \"B42\"}, \"call_2\"),\n          say(\"A17 has shipped. B42 is delayed.\")]\ngraph, _ = build(script, [lookup_order], verbose=True)  # ②\nquestion = {\"role\": \"user\", \"content\": \"Compare orders A17 and B42.\"}\nresult = graph.invoke({\"messages\": [question]})\nkinds = [message.type for message in result[\"messages\"]]\nprint(\"final\", len(kinds), kinds)  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "model node receives 1 ['human']"
+  },
+  {
+   "kind": "stdout",
+   "text": "model node receives 3 ['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "model node receives 5 ['human', 'ai', 'tool', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "final 6 ['human', 'ai', 'tool', 'ai', 'tool', 'ai']"
+  }
+ ]
+}

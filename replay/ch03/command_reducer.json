@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:16:26+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The update of a Command goes through the reducer of its key.\nBook: Chapter 3, section 3.5\nRun: python ch03/command_reducer.py\n\"\"\"\n# region: reducer\nimport operator\nfrom typing import Annotated, Literal, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command\n\n\nclass State(TypedDict):\n    notes: Annotated[list[str], operator.add]  # ①\n\n\ndef classify(state: State) -> Command[Literal[\"review\"]]:\n    return Command(update={\"notes\": [\"classified\"]}, goto=\"review\")  # ②\n\n\ndef review(state: State) -> dict:\n    return {\"notes\": [\"reviewed\"]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_node(\"review\", review)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_edge(\"review\", END)\nresult = builder.compile().invoke({\"notes\": [\"received\"]})\nprint(result[\"notes\"])  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['received', 'classified', 'reviewed']"
+  }
+ ]
+}

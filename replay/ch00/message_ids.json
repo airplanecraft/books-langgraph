@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "00-foundations",
+ "recordedAt": "2026-11-23T23:27:54+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Build message objects by hand and look at their types, roles and ids.\nBook: Chapter 0, section 0.2\nRun: python ch00/message_ids.py   (no key needed)\n\"\"\"\n# region: objects\nfrom langchain_core.messages import AIMessage, HumanMessage, ToolMessage\n\nquestion = HumanMessage(\"Where is my order B42?\")  # ①\nanswer = AIMessage(\"It is delayed.\", id=\"m2\")  # ②\nresult = ToolMessage(\"delayed: waiting for stock\", tool_call_id=\"call_1\",\n                     id=\"t1\")\nfor message in [question, answer, result]:\n    print(type(message).__name__, message.type, repr(message.id))  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "HumanMessage human None"
+  },
+  {
+   "kind": "stdout",
+   "text": "AIMessage ai 'm2'"
+  },
+  {
+   "kind": "stdout",
+   "text": "ToolMessage tool 't1'"
+  }
+ ]
+}

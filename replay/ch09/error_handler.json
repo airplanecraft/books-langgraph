@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:22:07+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"An error handler routes the card elsewhere once the retries run out.\nBook: Chapter 9, section 9.5\nRun: python ch09/error_handler.py\n\"\"\"\n# region: handler\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.errors import NodeError\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, RetryPolicy\n\nattempts: list = []\n\n\nclass State(TypedDict):\n    notes: Annotated[list, operator.add]\n\n\ndef send(state: State) -> dict:\n    attempts.append(\"run\")\n    raise ConnectionError(\"mail server unreachable\")\n\n\ndef give_up(state: State, error: NodeError) -> Command:  # ①\n    note = f\"{error.node} failed: {error.error}\"\n    return Command(update={\"notes\": [note]}, goto=\"tell_human\")  # ②\n\n\ndef tell_human(state: State) -> dict:\n    return {\"notes\": [\"a person will answer the customer\"]}\n\n\npolicy = RetryPolicy(initial_interval=0.01, jitter=False)\nbuilder = StateGraph(State)\nbuilder.add_node(\"send\", send, retry_policy=policy,\n                 error_handler=give_up)  # ③\nbuilder.add_node(\"tell_human\", tell_human)\nbuilder.add_edge(START, \"send\")\nbuilder.add_edge(\"tell_human\", END)\nresult = builder.compile().invoke({\"notes\": [\"read the email\"]})\nprint(\"attempts:\", len(attempts))\nfor note in result[\"notes\"]:\n    print(\"note:\", note)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "attempts: 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "note: read the email"
+  },
+  {
+   "kind": "stdout",
+   "text": "note: send failed: mail server unreachable"
+  },
+  {
+   "kind": "stdout",
+   "text": "note: a person will answer the customer"
+  }
+ ]
+}

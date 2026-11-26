@@ -1,0 +1,50 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T01:02:33+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"One reply with two tool calls: the tool node answers both.\nBook: Chapter 4, section 4.7\nRun: python ch04/two_calls.py\n\"\"\"\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n# region: helper\nfrom collections.abc import Callable\n\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\nfrom common import ScriptedModel  # the stand-in model of chapter 0\n\n\ndef build(script: list, tools: list, router: Callable = tools_condition,\n          verbose: bool = False) -> tuple:\n    model = ScriptedModel(script=script).bind_tools(tools)\n\n    def call_model(state: MessagesState) -> dict:\n        if verbose:\n            kinds = [message.type for message in state[\"messages\"]]\n            print(\"model node receives\", len(kinds), kinds)\n        return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", router)  # ①\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile(), model\n# endregion\n\n# region: parallel\nfrom langchain_core.messages import AIMessage\n\nfrom common import say  # the helper from chapter 0\n\ncalls = [\n    {\"name\": \"lookup_order\", \"args\": {\"order_id\": \"A17\"}, \"id\": \"call_1\"},\n    {\"name\": \"lookup_order\", \"args\": {\"order_id\": \"B42\"}, \"id\": \"call_2\"},\n]\nscript = [AIMessage(content=\"\", tool_calls=calls),  # ①\n          say(\"A17 has shipped. B42 is delayed.\")]\ngraph, _ = build(script, [lookup_order], verbose=True)\nquestion = {\"role\": \"user\", \"content\": \"Compare orders A17 and B42.\"}\nresult = graph.invoke({\"messages\": [question]})\nfor message in result[\"messages\"]:\n    print(message.type, \"|\", message.content)\n    if message.type == \"tool\":\n        print(\"   answers\", message.tool_call_id)  # ②\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "model node receives 1 ['human']"
+  },
+  {
+   "kind": "stdout",
+   "text": "model node receives 4 ['human', 'ai', 'tool', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "human | Compare orders A17 and B42."
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | "
+  },
+  {
+   "kind": "stdout",
+   "text": "tool | shipped on 18 November"
+  },
+  {
+   "kind": "stdout",
+   "text": "   answers call_1"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool | delayed: waiting for stock"
+  },
+  {
+   "kind": "stdout",
+   "text": "   answers call_2"
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | A17 has shipped. B42 is delayed."
+  }
+ ]
+}

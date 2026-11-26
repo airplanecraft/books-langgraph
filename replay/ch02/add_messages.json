@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "02-state-reducers",
+ "recordedAt": "2026-11-23T15:14:56+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Call add_messages by hand: it appends, replaces by id, and converts dicts.\nBook: Chapter 2, section 2.4\nRun: python ch02/add_messages.py\n\"\"\"\n# region: merge\nfrom langchain_core.messages import AIMessage, HumanMessage\nfrom langgraph.graph.message import add_messages\n\nold = [HumanMessage(\"Where is order B42?\", id=\"m1\")]\nnew = [AIMessage(\"Let me check.\", id=\"m2\")]\nmerged = add_messages(old, new)  # ①\nprint([(m.type, m.content, m.id) for m in merged])\n\nfix = [AIMessage(\"It is delayed.\", id=\"m2\")]  # ②\nmerged = add_messages(merged, fix)\nprint([(m.type, m.content, m.id) for m in merged])\n\nas_dict = [{\"role\": \"user\", \"content\": \"Thanks\"}]  # ③\nmerged = add_messages(merged, as_dict)\nprint([(m.type, m.content, m.id is not None) for m in merged][-1])\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "[('human', 'Where is order B42?', 'm1'), ('ai', 'Let me check.', 'm2')]"
+  },
+  {
+   "kind": "stdout",
+   "text": "[('human', 'Where is order B42?', 'm1'), ('ai', 'It is delayed.', 'm2')]"
+  },
+  {
+   "kind": "stdout",
+   "text": "('human', 'Thanks', True)"
+  }
+ ]
+}

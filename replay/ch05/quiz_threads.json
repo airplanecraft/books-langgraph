@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "05-persistence",
+ "recordedAt": "2026-11-24T01:26:41+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: two threads that each add notes, and what the second one holds.\nBook: Chapter 5, section 5.2\nRun: python ch05/quiz_threads.py\n\"\"\"\n# region: quiz\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    notes: Annotated[list, operator.add]\n\n\ndef add_x(state: State) -> dict:\n    return {\"notes\": [\"x\"]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"add_x\", add_x)\nbuilder.add_edge(START, \"add_x\")\nbuilder.add_edge(\"add_x\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\nfor thread_id, note in [(\"ana\", \"a\"), (\"ben\", \"b\"), (\"ana\", \"c\")]:\n    config = {\"configurable\": {\"thread_id\": thread_id}}\n    graph.invoke({\"notes\": [note]}, config)\nconfig = {\"configurable\": {\"thread_id\": \"ben\"}}\nprint(graph.get_state(config).values[\"notes\"])\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['b', 'x']"
+  }
+ ]
+}

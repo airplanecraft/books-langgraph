@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "lesson": "06-streaming",
+ "recordedAt": "2026-11-24T01:33:25+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Nodes that write nothing: updates still reports them, values stays silent.\nBook: Chapter 6, section 6.2\nRun: python ch06/quiet.py\n\"\"\"\n# region: quiet\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    count: int\n\n\ndef read(state: State) -> dict:\n    return {\"count\": state[\"count\"] + 1}\n\n\ndef look(state: State) -> None:  # ①\n    \"\"\"Reads the state and changes nothing.\"\"\"\n\n\ndef tidy(state: State) -> dict:  # ②\n    return {}\n\n\ndef save(state: State) -> dict:\n    return {\"count\": state[\"count\"] + 1}\n\n\nbuilder = StateGraph(State)\nfor node in (read, look, tidy, save):\n    builder.add_node(node)\nbuilder.add_edge(START, \"read\")\nbuilder.add_edge(\"read\", \"look\")\nbuilder.add_edge(\"look\", \"tidy\")\nbuilder.add_edge(\"tidy\", \"save\")\nbuilder.add_edge(\"save\", END)\ngraph = builder.compile()\n\nstart = {\"count\": 0}\nfor item in graph.stream(start, stream_mode=\"updates\"):  # ③\n    print(\"updates:\", item)\nfor state in graph.stream(start, stream_mode=\"values\"):  # ④\n    print(\"values:\", state)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "updates: {'read': {'count': 1}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "updates: {'look': None}"
+  },
+  {
+   "kind": "stdout",
+   "text": "updates: {'tidy': None}"
+  },
+  {
+   "kind": "stdout",
+   "text": "updates: {'save': {'count': 2}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "values: {'count': 0}"
+  },
+  {
+   "kind": "stdout",
+   "text": "values: {'count': 1}"
+  },
+  {
+   "kind": "stdout",
+   "text": "values: {'count': 2}"
+  }
+ ]
+}

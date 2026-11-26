@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:23+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The recursion limit of the fan-out graph: five node runs, three super-steps.\nBook: Chapter 10, section 10.2\nRun: python ch10/parallel_limit.py\n\"\"\"\nimport operator\nfrom typing import Annotated, Callable, TypedDict\n\nfrom langchain_core.runnables import RunnableConfig\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.graph.state import CompiledStateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list[str], operator.add]\n\n\ndef make_step(label: str) -> Callable[[State, RunnableConfig], dict]:\n    def step(state: State, config: RunnableConfig) -> dict:\n        number = config[\"metadata\"][\"langgraph_step\"]\n        seen = len(state[\"notes\"])\n        note = f\"{label}: super-step {number}, notes seen {seen}\"\n        return {\"notes\": [note]}\n\n    return step\n\n\nbuilder = StateGraph(State)\nfor label in (\"read\", \"order\", \"plan\", \"shipping\", \"draft\"):\n    builder.add_node(label, make_step(label))\nbuilder.add_edge(START, \"read\")\nfor label in (\"order\", \"plan\", \"shipping\"):\n    builder.add_edge(\"read\", label)\n    builder.add_edge(label, \"draft\")\nbuilder.add_edge(\"draft\", END)\ngraph: CompiledStateGraph = builder.compile()\n\n# region: limit\nfrom langgraph.errors import GraphRecursionError\n\nfor limit in (3, 4):\n    try:\n        graph.invoke({\"customer\": \"Ana\", \"notes\": []},\n                     config={\"recursion_limit\": limit})\n        print(\"limit\", limit, \"finished\")  # ①\n    except GraphRecursionError:\n        print(\"limit\", limit, \"GraphRecursionError\")  # ②\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "limit 3 GraphRecursionError"
+  },
+  {
+   "kind": "stdout",
+   "text": "limit 4 finished"
+  }
+ ]
+}

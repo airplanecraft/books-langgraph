@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:16:28+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: a node returns a Command with an update and a goto.\nBook: Chapter 3, section 3.5\nRun: python ch03/quiz_command.py\n\"\"\"\n# region: command\nfrom typing import Literal, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command\n\n\nclass State(TypedDict):\n    customer: str\n    category: str\n    reply: str\n\n\ndef sort(state: State) -> Command[Literal[\"slow\", \"fast\"]]:\n    return Command(update={\"category\": \"refund\"}, goto=\"fast\")\n\n\ndef slow(state: State) -> dict:\n    return {\"reply\": \"slow\"}\n\n\ndef fast(state: State) -> dict:\n    return {\"reply\": \"fast\"}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"sort\", sort)\nbuilder.add_node(\"slow\", slow)\nbuilder.add_node(\"fast\", fast)\nbuilder.add_edge(START, \"sort\")\nbuilder.add_edge(\"slow\", END)\nbuilder.add_edge(\"fast\", END)\nticket = {\"customer\": \"Ana\", \"category\": \"unknown\", \"reply\": \"\"}\nprint(builder.compile().invoke(ticket))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'customer': 'Ana', 'category': 'refund', 'reply': 'fast'}"
+  }
+ ]
+}

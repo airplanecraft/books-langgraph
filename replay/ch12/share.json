@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:22:59+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"One graph, three threads: a preference saved in one is read in another.\nBook: Chapter 12, section 12.3\nRun: python ch12/share.py\n\"\"\"\n# region: share\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.runtime import Runtime\nfrom langgraph.store.memory import InMemoryStore\n\n\nclass State(TypedDict, total=False):\n    user: str\n    tone: str\n    note: str\n\n\ndef save(state: State, runtime: Runtime) -> dict:  # ①\n    if \"tone\" in state:\n        where = (\"users\", state[\"user\"])\n        runtime.store.put(where, \"prefs\", {\"tone\": state[\"tone\"]})  # ②\n    return {}\n\n\ndef recall(state: State, runtime: Runtime) -> dict:\n    item = runtime.store.get((\"users\", state[\"user\"]), \"prefs\")  # ③\n    tone = item.value[\"tone\"] if item else \"none saved\"\n    return {\"note\": f\"{state['user']}: {tone}\"}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"save\", save)\nbuilder.add_node(\"recall\", recall)\nbuilder.add_edge(START, \"save\")\nbuilder.add_edge(\"save\", \"recall\")\nbuilder.add_edge(\"recall\", END)\nstore = InMemoryStore()\ngraph = builder.compile(checkpointer=InMemorySaver(), store=store)  # ④\n# endregion\n\n# region: calls\nruns = [(\"monday\", {\"user\": \"ana\", \"tone\": \"short\"}),\n        (\"tuesday\", {\"user\": \"ana\"}),\n        (\"wednesday\", {\"user\": \"ben\"})]\nfor thread_id, given in runs:\n    config = {\"configurable\": {\"thread_id\": thread_id}}\n    note = graph.invoke(given, config)[\"note\"]\n    copies = len(list(graph.get_state_history(config)))\n    print(thread_id, note, f\"({copies} checkpoints)\")\ntuesday = {\"configurable\": {\"thread_id\": \"tuesday\"}}\nprint(graph.get_state(tuesday).values)  # ①\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "monday ana: short (4 checkpoints)"
+  },
+  {
+   "kind": "stdout",
+   "text": "tuesday ana: short (4 checkpoints)"
+  },
+  {
+   "kind": "stdout",
+   "text": "wednesday ben: none saved (4 checkpoints)"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'user': 'ana', 'note': 'ana: short'}"
+  }
+ ]
+}

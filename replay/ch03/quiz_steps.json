@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:16:27+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: which super-step does the last node run in?\nBook: Chapter 3, section 3.3\nRun: python ch03/quiz_steps.py\n\"\"\"\n# region: steps\nfrom typing import Literal, TypedDict\n\nfrom langchain_core.runnables import RunnableConfig\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    laps: int\n\n\ndef fetch(state: State) -> dict:\n    return {\"laps\": state[\"laps\"] + 1}\n\n\ndef check(state: State) -> dict:\n    return {}\n\n\ndef after_check(state: State) -> Literal[\"fetch\", \"finish\"]:\n    return \"finish\" if state[\"laps\"] >= 2 else \"fetch\"\n\n\ndef finish(state: State, config: RunnableConfig) -> dict:\n    print(\"finish ran in super-step\", config[\"metadata\"][\"langgraph_step\"])\n    return {}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"fetch\", fetch)\nbuilder.add_node(\"check\", check)\nbuilder.add_node(\"finish\", finish)\nbuilder.add_edge(START, \"fetch\")\nbuilder.add_edge(\"fetch\", \"check\")\nbuilder.add_conditional_edges(\"check\", after_check)\nbuilder.add_edge(\"finish\", END)\nbuilder.compile().invoke({\"laps\": 0})\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "finish ran in super-step 5"
+  }
+ ]
+}

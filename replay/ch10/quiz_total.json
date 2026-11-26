@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:26+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: two parallel nodes add to one number with a reducer.\nBook: Chapter 10, section 10.3\nRun: python ch10/quiz_total.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    total: Annotated[int, operator.add]\n\n\ndef base(state: State) -> None:\n    return None\n\n\ndef fee(state: State) -> dict:\n    return {\"total\": 10}\n\n\ndef tax(state: State) -> dict:\n    return {\"total\": 5}\n\n\nbuilder = StateGraph(State)\nfor name, node in ((\"base\", base), (\"fee\", fee), (\"tax\", tax)):\n    builder.add_node(name, node)\nbuilder.add_edge(START, \"base\")\nbuilder.add_edge(\"base\", \"fee\")\nbuilder.add_edge(\"base\", \"tax\")\nbuilder.add_edge(\"fee\", END)\nbuilder.add_edge(\"tax\", END)\nprint(builder.compile().invoke({\"total\": 100})[\"total\"])\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "115"
+  }
+ ]
+}

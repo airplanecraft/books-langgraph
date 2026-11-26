@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "06-streaming",
+ "recordedAt": "2026-11-24T01:33:27+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Two stream modes at once: the items are (mode, data) pairs.\nBook: Chapter 6, section 6.5\nRun: python ch06/together.py\n\"\"\"\n# region: writer\nfrom typing import TypedDict\n\nfrom langgraph.config import get_stream_writer\nfrom langgraph.graph import END, START, StateGraph\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\nclass State(TypedDict):\n    report: str\n\n\ndef check_orders(state: State) -> dict:\n    write = get_stream_writer()  # ①\n    lines = []\n    for order_id, status in ORDERS.items():\n        write(f\"checking {order_id}\")  # ②\n        lines.append(f\"{order_id} {status}\")\n    write({\"checked\": len(lines)})  # ③\n    return {\"report\": \"; \".join(lines)}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"check_orders\", check_orders)\nbuilder.add_edge(START, \"check_orders\")\nbuilder.add_edge(\"check_orders\", END)\ngraph = builder.compile()\n# endregion\n\n# region: together\nstart = {\"report\": \"\"}\nfor mode, data in graph.stream(start, stream_mode=[\"custom\", \"updates\"]):\n    print(mode, \"|\", data)  # ①\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "custom | checking A17"
+  },
+  {
+   "kind": "stdout",
+   "text": "custom | checking B42"
+  },
+  {
+   "kind": "stdout",
+   "text": "custom | {'checked': 2}"
+  },
+  {
+   "kind": "stdout",
+   "text": "updates | {'check_orders': {'report': 'A17 shipped on 18 November; B42 delayed: waiting for stock'}}"
+  }
+ ]
+}

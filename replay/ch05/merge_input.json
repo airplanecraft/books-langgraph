@@ -1,0 +1,46 @@
+{
+ "version": 1,
+ "lesson": "05-persistence",
+ "recordedAt": "2026-11-24T01:26:39+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A second invoke on the same thread: the input is merged, the graph runs again.\nBook: Chapter 5, section 5.5\nRun: python ch05/merge_input.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langchain_core.runnables import RunnableConfig\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list, operator.add]\n\n\ndef read(state: State, config: RunnableConfig) -> dict:\n    step = config[\"metadata\"][\"langgraph_step\"]\n    print(\"read runs in super-step\", step)\n    return {\"notes\": [\"read the email\"]}\n\n\ndef draft(state: State, config: RunnableConfig) -> dict:\n    step = config[\"metadata\"][\"langgraph_step\"]\n    print(\"draft runs in super-step\", step)\n    return {\"notes\": [\"wrote a reply\"]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"read\", read)\nbuilder.add_node(\"draft\", draft)\nbuilder.add_edge(START, \"read\")\nbuilder.add_edge(\"read\", \"draft\")\nbuilder.add_edge(\"draft\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\n# region: merge\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\ngraph.invoke({\"customer\": \"Ana\", \"notes\": [\"email 1\"]}, config)\nprint(\"second invoke\")\nsecond = graph.invoke({\"notes\": [\"email 2\"]}, config)  # ①\nprint(\"customer:\", second[\"customer\"])  # ②\nprint(\"notes:\", second[\"notes\"])  # ③\nprint(\"checkpoints:\", len(list(graph.get_state_history(config))))  # ④\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "read runs in super-step 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "draft runs in super-step 2"
+  },
+  {
+   "kind": "stdout",
+   "text": "second invoke"
+  },
+  {
+   "kind": "stdout",
+   "text": "read runs in super-step 5"
+  },
+  {
+   "kind": "stdout",
+   "text": "draft runs in super-step 6"
+  },
+  {
+   "kind": "stdout",
+   "text": "customer: Ana"
+  },
+  {
+   "kind": "stdout",
+   "text": "notes: ['email 1', 'read the email', 'wrote a reply', 'email 2', 'read the email', 'wrote a reply']"
+  },
+  {
+   "kind": "stdout",
+   "text": "checkpoints: 8"
+  }
+ ]
+}

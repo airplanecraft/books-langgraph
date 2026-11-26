@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "06-streaming",
+ "recordedAt": "2026-11-24T00:58:27+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: how many items values and updates give when two nodes write nothing.\nBook: Chapter 6, section 6.2\nRun: python ch06/quiz_values.py\n\"\"\"\n# region: quiz\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    total: int\n\n\ndef add_one(state: State) -> dict:\n    return {\"total\": state[\"total\"] + 1}\n\n\ndef look(state: State) -> None:\n    \"\"\"Reads the state and changes nothing.\"\"\"\n\n\ndef nothing_to_say(state: State) -> dict:\n    return {}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"a\", add_one)\nbuilder.add_node(\"b\", look)\nbuilder.add_node(\"c\", add_one)\nbuilder.add_node(\"d\", nothing_to_say)\nbuilder.add_edge(START, \"a\")\nbuilder.add_edge(\"a\", \"b\")\nbuilder.add_edge(\"b\", \"c\")\nbuilder.add_edge(\"c\", \"d\")\nbuilder.add_edge(\"d\", END)\ngraph = builder.compile()\n\nstart = {\"total\": 0}\nstates = list(graph.stream(start, stream_mode=\"values\"))\nchanges = list(graph.stream(start, stream_mode=\"updates\"))\nprint(len(states), len(changes))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "3 4"
+  }
+ ]
+}

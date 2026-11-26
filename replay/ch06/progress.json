@@ -1,0 +1,1716 @@
+{
+ "version": 1,
+ "lesson": "06-streaming",
+ "recordedAt": "2026-11-24T01:33:53+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Show a run in the terminal: a note from a tool, and the reply as it is written.\nBook: Chapter 6, section 6.4\nRun: python ch06/progress.py   (or OFFLINE=1 python ch06/progress.py)\n\"\"\"\nimport time\nfrom typing import Any\n\nfrom langchain_core.language_models.chat_models import BaseChatModel\nfrom langchain_core.tools import tool\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n# region: tool\nfrom langgraph.config import get_stream_writer\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    get_stream_writer()(f\"looking up {order_id}\")  # ①\n    time.sleep(1)  # the slow system behind the tool\n    return ORDERS.get(order_id, \"no order with that ID\")\n# endregion\n\n\ndef build(model: BaseChatModel) -> Any:\n    model = model.bind_tools([lookup_order])\n\n    def call_model(state: MessagesState) -> dict:\n        return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode([lookup_order]))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", tools_condition)\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile()\n\n\n# region: progress\nfrom common import get_model  # the helper of chapter 0\n\nquestion = {\"messages\": [{\"role\": \"user\", \"content\": \"Where is B42?\"}]}\nmodes = [\"updates\", \"custom\", \"messages\"]  # ①\nstream = build(get_model()).stream(question, stream_mode=modes)\nfor mode, data in stream:  # ②\n    if mode == \"custom\":\n        print(\"[note]\", data)\n    elif mode == \"updates\":\n        for node in data:\n            print(f\" [{node} finished]\")\n    else:\n        chunk, metadata = data  # ③\n        if metadata[\"langgraph_node\"] == \"model\":\n            print(chunk.content, end=\"\", flush=True)  # ④\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"\", \"additional_kwargs\": {\"reasoning_content\": \"The user asks about order B42. I should look up the order.\"}, \"response_metadata\": {\"finish_reason\": \"tool_calls\", \"normalized_finish_reason\": \"tool_call\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"model_provider\": \"deepseek\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b30-0305-705c-8703-d75381a7e2ed\", \"tool_calls\": [{\"name\": \"lookup_order\", \"args\": {\"order_id\": \"B42\"}, \"id\": \"call_00_4jrNvvRabOhTqKifgnsQ3902\", \"type\": \"tool_call\"}], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 306, \"output_tokens\": 56, \"total_tokens\": 362, \"input_token_details\": {\"cache_read\": 128}, \"output_token_details\": {\"reasoning\": 15}}}}",
+   "chunks": [
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": ""
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": "The"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " user"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " asks"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " about"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " order"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " B"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": "42"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": "."
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " I"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " should"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " look"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " up"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " the"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": " order"
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": "."
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [
+       {
+        "name": "lookup_order",
+        "args": {},
+        "id": "call_00_4jrNvvRabOhTqKifgnsQ3902",
+        "type": "tool_call"
+       }
+      ],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [
+       {
+        "name": "lookup_order",
+        "args": "",
+        "id": "call_00_4jrNvvRabOhTqKifgnsQ3902",
+        "index": 0,
+        "type": "tool_call_chunk"
+       }
+      ],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [
+       {
+        "name": "",
+        "args": {},
+        "id": null,
+        "type": "tool_call"
+       }
+      ],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [
+       {
+        "name": null,
+        "args": "{\"",
+        "id": null,
+        "index": 0,
+        "type": "tool_call_chunk"
+       }
+      ],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [
+       {
+        "name": null,
+        "args": "order",
+        "id": null,
+        "error": null,
+        "type": "invalid_tool_call"
+       }
+      ],
+      "usage_metadata": null,
+      "tool_call_chunks": [
+       {
+        "name": null,
+        "args": "order",
+        "id": null,
+        "index": 0,
+        "type": "tool_call_chunk"
+       }
+      ],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [
+       {
+        "name": null,
+        "args": "_id",
+        "id": null,
+        "error": null,
+        "type": "invalid_tool_call"
+       }
+      ],
+      "usage_metadata": null,
+      "tool_call_chunks": [
+       {
+        "name": null,
+        "args": "_id",
+        "id": null,
+        "index": 0,
+        "type": "tool_call_chunk"
+       }
+      ],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [
+       {
+        "name": null,
+        "args": "\"",
+        "id": null,
+        "error": null,
+        "type": "invalid_tool_call"
+       }
+      ],
+      "usage_metadata": null,
+      "tool_call_chunks": [
+       {
+        "name": null,
+        "args": "\"",
+        "id": null,
+        "index": 0,
+        "type": "tool_call_chunk"
+       }
+      ],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [
+       {
+        "name": null,
+        "args": ": \"",
+        "id": null,
+        "error": null,
+        "type": "invalid_tool_call"
+       }
+      ],
+      "usage_metadata": null,
+      "tool_call_chunks": [
+       {
+        "name": null,
+        "args": ": \"",
+        "id": null,
+        "index": 0,
+        "type": "tool_call_chunk"
+       }
+      ],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [
+       {
+        "name": null,
+        "args": "B",
+        "id": null,
+        "error": null,
+        "type": "invalid_tool_call"
+       }
+      ],
+      "usage_metadata": null,
+      "tool_call_chunks": [
+       {
+        "name": null,
+        "args": "B",
+        "id": null,
+        "index": 0,
+        "type": "tool_call_chunk"
+       }
+      ],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [
+       {
+        "name": null,
+        "args": "42",
+        "id": null,
+        "error": null,
+        "type": "invalid_tool_call"
+       }
+      ],
+      "usage_metadata": null,
+      "tool_call_chunks": [
+       {
+        "name": null,
+        "args": "42",
+        "id": null,
+        "index": 0,
+        "type": "tool_call_chunk"
+       }
+      ],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [
+       {
+        "name": null,
+        "args": "\"",
+        "id": null,
+        "error": null,
+        "type": "invalid_tool_call"
+       }
+      ],
+      "usage_metadata": null,
+      "tool_call_chunks": [
+       {
+        "name": null,
+        "args": "\"",
+        "id": null,
+        "index": 0,
+        "type": "tool_call_chunk"
+       }
+      ],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [
+       {
+        "name": null,
+        "args": "}",
+        "id": null,
+        "error": null,
+        "type": "invalid_tool_call"
+       }
+      ],
+      "usage_metadata": null,
+      "tool_call_chunks": [
+       {
+        "name": null,
+        "args": "}",
+        "id": null,
+        "index": 0,
+        "type": "tool_call_chunk"
+       }
+      ],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "finish_reason": "tool_calls",
+       "normalized_finish_reason": "tool_call",
+       "model_name": "deepseek-flash",
+       "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": {
+       "input_tokens": 306,
+       "output_tokens": 56,
+       "total_tokens": 362,
+       "input_token_details": {
+        "cache_read": 128
+       },
+       "output_token_details": {
+        "reasoning": 15
+       }
+      },
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-0305-705c-8703-d75381a7e2ed",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": "last"
+     }
+    }
+   ]
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"Order B42 is currently **delayed \\u2014 it's waiting for stock**. Once the item is back in inventory, it should ship. If you'd like, I can check again later or you can contact the seller for an estimated restock date.\", \"additional_kwargs\": {\"reasoning_content\": \"\"}, \"response_metadata\": {\"finish_reason\": \"stop\", \"normalized_finish_reason\": \"stop\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"model_provider\": \"deepseek\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b30-16e9-767d-8059-a7db1997e7be\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 380, \"output_tokens\": 51, \"total_tokens\": 431, \"input_token_details\": {\"cache_read\": 128}, \"output_token_details\": {\"reasoning\": 0}}}}",
+   "chunks": [
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {
+       "reasoning_content": ""
+      },
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "Order",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " B",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "42",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " is",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " currently",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " **",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "del",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "ayed",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " —",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " it",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "'s",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " waiting",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " for",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " stock",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "**.",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " Once",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " the",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " item",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " is",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " back",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " in",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " inventory",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": ",",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " it",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " should",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " ship",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": ".",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " If",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " you",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "'d",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " like",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": ",",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " I",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " can",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " check",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " again",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " later",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " or",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " you",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " can",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " contact",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " the",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " seller",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " for",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " an",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " estimated",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " rest",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "ock",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": " date",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": ".",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {
+       "finish_reason": "stop",
+       "normalized_finish_reason": "stop",
+       "model_name": "deepseek-flash",
+       "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+       "model_provider": "deepseek"
+      },
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": {
+       "input_tokens": 380,
+       "output_tokens": 51,
+       "total_tokens": 431,
+       "input_token_details": {
+        "cache_read": 128
+       },
+       "output_token_details": {
+        "reasoning": 0
+       }
+      },
+      "tool_call_chunks": [],
+      "chunk_position": null
+     }
+    },
+    {
+     "type": "AIMessageChunk",
+     "data": {
+      "content": "",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "AIMessageChunk",
+      "name": null,
+      "id": "lc_run--01a20b30-16e9-767d-8059-a7db1997e7be",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null,
+      "tool_call_chunks": [],
+      "chunk_position": "last"
+     }
+    }
+   ]
+  },
+  {
+   "kind": "stdout",
+   "text": " [model finished]"
+  },
+  {
+   "kind": "stdout",
+   "text": "[note] looking up B42"
+  },
+  {
+   "kind": "stdout",
+   "text": " [tools finished]"
+  },
+  {
+   "kind": "stdout",
+   "text": "Order B42 is currently **delayed — it's waiting for stock**. Once the item is back in inventory, it should ship. If you'd like, I can check again later or you can contact the seller for an estimated restock date. [model finished]"
+  }
+ ]
+}

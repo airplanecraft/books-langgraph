@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "07-asking-before-acting",
+ "recordedAt": "2026-11-24T02:54:51+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The agent loop of chapter 4 with a refund tool that nobody asks about.\nBook: Chapter 7, section 7.1\nRun: python ch07/no_question.py\n\"\"\"\n# region: agent\nfrom typing import Any\n\nfrom langchain_core.tools import tool\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\nfrom common import ScriptedModel, ask_for, say  # helpers of chapter 0\n\n\n@tool\ndef refund_order(order_id: str) -> str:\n    \"\"\"Refund the order with this ID, such as A17.\"\"\"\n    print(\"REFUND SENT for\", order_id)  # ①\n    return f\"refund sent for {order_id}\"\n\n\ndef build(script: list, tools: list, checkpointer: Any = None) -> Any:  # ②\n    model = ScriptedModel(script=script).bind_tools(tools)\n\n    def call_model(state: MessagesState) -> dict:\n        return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", tools_condition)\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile(checkpointer=checkpointer)\n\n\nscript = [ask_for(\"refund_order\", {\"order_id\": \"A17\"}),\n          say(\"I have refunded order A17.\")]\ngraph = build(script, [refund_order])\nquestion = {\"role\": \"user\", \"content\": \"Please refund order A17.\"}\nresult = graph.invoke({\"messages\": [question]})  # ③\nprint(result[\"messages\"][-1].content)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "REFUND SENT for A17"
+  },
+  {
+   "kind": "stdout",
+   "text": "I have refunded order A17."
+  }
+ ]
+}

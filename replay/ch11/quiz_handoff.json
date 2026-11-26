@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:07+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: what the parent keeps when a subgraph hands over.\nBook: Chapter 11, section 11.6\nRun: python ch11/quiz_handoff.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command\n\n\nclass Ticket(TypedDict):\n    notes: Annotated[list[str], operator.add]\n\n\ndef first(state: Ticket) -> dict:\n    return {\"notes\": [\"a\"]}\n\n\ndef second(state: Ticket) -> Command:\n    return Command(graph=Command.PARENT, goto=\"billing\",\n                   update={\"notes\": [\"b\"]})\n\n\ndef billing(state: Ticket) -> dict:\n    return {\"notes\": [\"c\"]}\n\n\ninner = StateGraph(Ticket)\ninner.add_node(\"first\", first)\ninner.add_node(\"second\", second)\ninner.add_edge(START, \"first\")\ninner.add_edge(\"first\", \"second\")\nouter = StateGraph(Ticket)\nouter.add_node(\"support\", inner.compile(), destinations=(\"billing\",))\nouter.add_node(\"billing\", billing)\nouter.add_edge(START, \"support\")\nouter.add_edge(\"billing\", END)\nprint(outer.compile().invoke({\"notes\": [\"s\"]})[\"notes\"])\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['s', 'b', 'c']"
+  }
+ ]
+}

@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "13-project",
+ "recordedAt": "2026-11-24T04:42:12+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Optional: remember a customer's preferred style across tickets.\nBook: Chapter 13, section 13.8\nRun: python ch13/optional_memory.py\n\"\"\"\n# region: memory\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.runtime import Runtime\nfrom langgraph.store.memory import InMemoryStore\n\n\nclass State(TypedDict):\n    customer: str\n    tone: str\n    rule: str\n\n\ndef remember(state: State, runtime: Runtime) -> dict:\n    if \"tone\" in state:\n        where = (\"customers\", state[\"customer\"])  # ①\n        runtime.store.put(where, \"prefs\", {\"tone\": state[\"tone\"]})\n    return {}\n\n\ndef draft(state: State, runtime: Runtime) -> dict:\n    item = runtime.store.get((\"customers\", state[\"customer\"]), \"prefs\")  # ②\n    return {\"rule\": item.value[\"tone\"] if item else \"none\"}  # ③\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"remember\", remember)\nbuilder.add_node(\"draft\", draft)\nbuilder.add_edge(START, \"remember\")\nbuilder.add_edge(\"remember\", \"draft\")\nbuilder.add_edge(\"draft\", END)\ngraph = builder.compile(store=InMemoryStore())\n\ntickets = [(\"monday\", {\"customer\": \"ana\", \"tone\": \"short\"}),\n           (\"tuesday\", {\"customer\": \"ana\"}),\n           (\"wednesday\", {\"customer\": \"ben\"})]\nfor day, ticket in tickets:\n    print(day, \"-> style rule:\", graph.invoke(ticket)[\"rule\"])  # ④\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "monday -> style rule: short"
+  },
+  {
+   "kind": "stdout",
+   "text": "tuesday -> style rule: short"
+  },
+  {
+   "kind": "stdout",
+   "text": "wednesday -> style rule: none"
+  }
+ ]
+}

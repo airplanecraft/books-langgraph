@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "13-project",
+ "recordedAt": "2026-11-24T04:42:12+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Quiz run: three failures, three attempts, then the fallback node.\nBook: Chapter 13, section 13.4\nRun: python ch13/quiz_fallback.py\n\"\"\"\nfrom typing import TypedDict\n\nfrom langgraph.errors import NodeError\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, RetryPolicy\n\n\nclass State(TypedDict):\n    status: str\n\n\ncalls = []\n\n\ndef send(state: State) -> dict:\n    calls.append(\"send\")\n    if len(calls) <= 3:\n        raise ConnectionError(\"mail server unreachable\")\n    return {\"status\": \"sent\"}\n\n\ndef give_up(state: State, error: NodeError) -> Command:\n    return Command(goto=\"to_person\")\n\n\ndef to_person(state: State) -> dict:\n    return {\"status\": \"handed to a person\"}\n\n\npolicy = RetryPolicy(initial_interval=0.01, jitter=False)\nbuilder = StateGraph(State)\nbuilder.add_node(\"send\", send, retry_policy=policy, error_handler=give_up)\nbuilder.add_node(\"to_person\", to_person)\nbuilder.add_edge(START, \"send\")\nbuilder.add_edge(\"send\", END)\nbuilder.add_edge(\"to_person\", END)\nresult = builder.compile().invoke({\"status\": \"\"})\nprint(result[\"status\"], \"|\", len(calls), \"attempts\")\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "handed to a person | 3 attempts"
+  }
+ ]
+}

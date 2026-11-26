@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:05+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Which lines start again on a resume when a node calls the subgraph itself.\nBook: Chapter 11, section 11.5\nRun: python ch11/subgraph_rerun.py\n\"\"\"\n# region: wrapper\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, interrupt\n\n\nclass Ticket(TypedDict):\n    order_id: str\n    answer: str\n\n\ndef ask(state: Ticket) -> dict:\n    print(\"  ask starts\")\n    return {\"answer\": interrupt(f\"Refund order {state['order_id']}?\")}\n\n\ninner = StateGraph(Ticket)\ninner.add_node(\"ask\", ask)\ninner.add_edge(START, \"ask\")\norders_graph = inner.compile()\n\n\ndef call_orders(state: Ticket) -> dict:  # ①\n    print(\"  call_orders starts\")\n    answer = orders_graph.invoke({\"order_id\": state[\"order_id\"]})  # ②\n    return {\"answer\": answer[\"answer\"]}\n\n\nouter = StateGraph(Ticket)\nouter.add_node(\"call_orders\", call_orders)\nouter.add_edge(START, \"call_orders\")\nouter.add_edge(\"call_orders\", END)\ngraph = outer.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"ben\"}}\nresult = graph.invoke({\"order_id\": \"B42\"}, config)\nprint(\"asked:\", result[\"__interrupt__\"][0].value)  # ③\nprint(graph.invoke(Command(resume=\"no\"), config))  # ④\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "  call_orders starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "  ask starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "asked: Refund order B42?"
+  },
+  {
+   "kind": "stdout",
+   "text": "  call_orders starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "  ask starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'order_id': 'B42', 'answer': 'no'}"
+  }
+ ]
+}

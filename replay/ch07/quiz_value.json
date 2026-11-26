@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "07-asking-before-acting",
+ "recordedAt": "2026-11-24T02:54:55+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run for chapter 7: the resume value is the return value of interrupt.\nBook: Chapter 7, section 7.3\nRun: python ch07/quiz_value.py\n\"\"\"\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, interrupt\n\n\nclass State(TypedDict):\n    price: int\n    total: int\n\n\ndef order(state: State) -> dict:\n    quantity = interrupt(\"How many?\")\n    return {\"total\": quantity * state[\"price\"]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"order\", order)\nbuilder.add_edge(START, \"order\")\nbuilder.add_edge(\"order\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"q\"}}\ngraph.invoke({\"price\": 4, \"total\": 0}, config)\nprint(graph.invoke(Command(resume=3), config))\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'price': 4, 'total': 12}"
+  }
+ ]
+}

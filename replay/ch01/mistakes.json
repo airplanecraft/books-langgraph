@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "01-your-first-graph",
+ "recordedAt": "2026-11-23T23:02:49+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Three mistakes in building a graph, and the error each one gives.\nBook: Chapter 1, section 1.7\nRun: python ch01/mistakes.py\n\"\"\"\n# region: mistakes\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    category: str\n\n\ndef classify(state: State) -> dict:\n    return {\"category\": \"billing\"}\n\n\ntypo = StateGraph(State)\ntypo.add_node(\"classify\", classify)\ntypo.add_edge(START, \"clasify\")  # ①\ntry:\n    typo.compile()\nexcept ValueError as error:\n    print(\"typo:\", error)\n\nno_start = StateGraph(State)\nno_start.add_node(\"classify\", classify)\nno_start.add_edge(\"classify\", END)  # ②\ntry:\n    no_start.compile()\nexcept ValueError as error:\n    print(\"no start:\", error)\n\ntry:\n    no_start.invoke({\"category\": \"unknown\"})  # ③\nexcept AttributeError as error:\n    print(\"not compiled:\", error)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "typo: Found edge ending at unknown node `clasify`"
+  },
+  {
+   "kind": "stdout",
+   "text": "no start: Graph must have an entrypoint: add at least one edge from START to another node"
+  },
+  {
+   "kind": "stdout",
+   "text": "not compiled: 'StateGraph' object has no attribute 'invoke'"
+  }
+ ]
+}

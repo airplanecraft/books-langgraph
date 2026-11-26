@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "lesson": "00-foundations",
+ "recordedAt": "2026-11-23T22:51:15+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Backs a self-check question: two lookups in a row, messages counted before each call.\nBook: Chapter 0, section 0.6\nRun: python ch00/quiz_two_rounds.py   (no key needed)\n\"\"\"\nfrom langchain_core.messages import ToolMessage\nfrom langchain_core.tools import tool\n\nfrom common import ScriptedModel, ask_for, say\n\nORDERS = {\"A17\": \"shipped on 18 November\", \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n\n# region: quiz\nmodel = ScriptedModel(script=[\n    ask_for(\"lookup_order\", {\"order_id\": \"A17\"}),\n    ask_for(\"lookup_order\", {\"order_id\": \"C99\"}, call_id=\"call_2\"),\n    say(\"A17 shipped on 18 November. I found no order C99.\"),\n]).bind_tools([lookup_order])\nmessages = [{\"role\": \"user\", \"content\": \"Where are A17 and C99?\"}]\nwhile True:\n    print(\"messages sent:\", len(messages))\n    reply = model.invoke(messages)\n    if not reply.tool_calls:\n        break\n    call = reply.tool_calls[0]\n    result = lookup_order.invoke(call[\"args\"])\n    print(\"tool result:\", repr(result))\n    messages = messages + [reply, ToolMessage(result, tool_call_id=call[\"id\"])]\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "messages sent: 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool result: 'shipped on 18 November'"
+  },
+  {
+   "kind": "stdout",
+   "text": "messages sent: 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool result: 'no order with that ID'"
+  },
+  {
+   "kind": "stdout",
+   "text": "messages sent: 5"
+  }
+ ]
+}

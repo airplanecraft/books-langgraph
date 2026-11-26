@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "08-time-travel",
+ "recordedAt": "2026-11-24T03:15:58+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: which nodes run again when a run starts from an older copy.\nBook: Chapter 8, section 8.3\nRun: python ch08/quiz_rerun.py\n\"\"\"\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\nran: list[str] = []\n\n\nclass State(TypedDict):\n    total: int\n\n\ndef fetch(state: State) -> dict:\n    ran.append(\"fetch\")\n    return {\"total\": 10}\n\n\ndef clean(state: State) -> dict:\n    ran.append(\"clean\")\n    return {\"total\": state[\"total\"] - 2}\n\n\ndef store(state: State) -> dict:\n    ran.append(\"store\")\n    return {}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"fetch\", fetch)\nbuilder.add_node(\"clean\", clean)\nbuilder.add_node(\"store\", store)\nbuilder.add_edge(START, \"fetch\")\nbuilder.add_edge(\"fetch\", \"clean\")\nbuilder.add_edge(\"clean\", \"store\")\nbuilder.add_edge(\"store\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"q1\"}}\ngraph.invoke({\"total\": 0}, config)\nbefore_clean = next(snapshot for snapshot in graph.get_state_history(config)\n                    if snapshot.next == (\"clean\",))\nran.clear()\nresult = graph.invoke(None, before_clean.config)\nprint(ran, result[\"total\"])\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['clean', 'store'] 8"
+  }
+ ]
+}

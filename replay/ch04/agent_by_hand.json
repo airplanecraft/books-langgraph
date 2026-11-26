@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T00:40:41+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The agent loop built by hand: model node, tool node and one routing function.\nBook: Chapter 4, section 4.3\nRun: python ch04/agent_by_hand.py   (or OFFLINE=1 python ch04/agent_by_hand.py)\n\"\"\"\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n# region: build\nfrom typing import Literal\n\nfrom langgraph.graph import END, START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode\n\nfrom common import get_model  # the helper from chapter 0\n\nmodel = get_model().bind_tools([lookup_order])\n\n\ndef call_model(state: MessagesState) -> dict:\n    return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n\ndef route(state: MessagesState) -> Literal[\"tools\", \"__end__\"]:  # ①\n    last_message = state[\"messages\"][-1]\n    return \"tools\" if last_message.tool_calls else END\n\n\nbuilder = StateGraph(MessagesState)\nbuilder.add_node(\"model\", call_model)\nbuilder.add_node(\"tools\", ToolNode([lookup_order]))  # ②\nbuilder.add_edge(START, \"model\")\nbuilder.add_conditional_edges(\"model\", route)  # ③\nbuilder.add_edge(\"tools\", \"model\")  # ④\ngraph = builder.compile()\n# endregion\n\n# region: run\nquestion = {\"role\": \"user\", \"content\": \"Where is my order B42?\"}\nlimit = {\"recursion_limit\": 10}  # ①\nresult = graph.invoke({\"messages\": [question]}, config=limit)\nfor message in result[\"messages\"]:\n    print(message.type, \"|\", message.content)  # ②\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I'll look that up for you.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 48, \"prompt_tokens\": 308, \"total_tokens\": 356, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 0, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 128, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 128, \"prompt_cache_miss_tokens\": 180}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"bbc03d0f-cf9d-455d-9087-746eac85ed57\", \"finish_reason\": \"tool_calls\", \"logprobs\": null, \"normalized_finish_reason\": \"tool_call\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20aff-4c34-7278-b00b-da85d74fb0e6-0\", \"tool_calls\": [{\"name\": \"lookup_order\", \"args\": {\"order_id\": \"B42\"}, \"id\": \"call_00_ET_LVyRua04qj822f97qYsl0861\", \"type\": \"tool_call\"}], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 308, \"output_tokens\": 48, \"total_tokens\": 356, \"input_token_details\": {\"cache_read\": 128}, \"output_token_details\": {\"reasoning\": 0}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"Your order **B42** is currently **delayed \\u2014 it's waiting on stock**. Once the item is back in inventory, it should ship out. If you'd like, I can check again later or you may want to contact support about an estimated restock date.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"The order is delayed, waiting for stock. Report to user.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 69, \"prompt_tokens\": 374, \"total_tokens\": 443, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 13, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 128, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 128, \"prompt_cache_miss_tokens\": 246}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"ddeb1b17-5a10-428d-b05c-5f26a55ce2fa\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20aff-66c0-765b-b099-47caf81b4fe9-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 374, \"output_tokens\": 69, \"total_tokens\": 443, \"input_token_details\": {\"cache_read\": 128}, \"output_token_details\": {\"reasoning\": 13}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "human | Where is my order B42?"
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | I'll look that up for you."
+  },
+  {
+   "kind": "stdout",
+   "text": "tool | delayed: waiting for stock"
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | Your order **B42** is currently **delayed — it's waiting on stock**. Once the item is back in inventory, it should ship out. If you'd like, I can check again later or you may want to contact support about an estimated restock date."
+  }
+ ]
+}

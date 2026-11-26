@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:25+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A Send object per email: one classify run each, with its own input.\nBook: Chapter 10, section 10.6\nRun: python ch10/send_map.py\n\"\"\"\n# region: send\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langchain_core.runnables import RunnableConfig\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Send\n\n\nclass State(TypedDict):\n    emails: list[str]\n    results: Annotated[list[str], operator.add]  # ①\n    summary: str\n\n\ndef fan_out(state: State) -> list[Send]:\n    return [Send(\"classify\", {\"email\": body})\n            for body in state[\"emails\"]]  # ②\n\n\ndef classify(item: dict, config: RunnableConfig) -> dict:  # ③\n    number = config[\"metadata\"][\"langgraph_step\"]\n    category = \"billing\" if \"charged\" in item[\"email\"] else \"other\"\n    return {\"results\": [f\"{category}, super-step {number}, got {item}\"]}\n\n\ndef summarize(state: State) -> dict:\n    return {\"summary\": f\"{len(state['results'])} classified\"}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_node(\"summarize\", summarize)\nbuilder.add_conditional_edges(START, fan_out, [\"classify\"])  # ④\nbuilder.add_edge(\"classify\", \"summarize\")\nbuilder.add_edge(\"summarize\", END)\ngraph = builder.compile()\n# endregion\n\n# region: run\ninbox = [\"Cy: I was charged twice\", \"Ana: parcel is late\", \"Ben: no invoice\"]\nfor emails in (inbox, inbox[:1], []):\n    result = graph.invoke({\"emails\": emails, \"results\": [], \"summary\": \"\"})\n    print(\"emails:\", len(emails), \"|\", result[\"summary\"] or \"(no summary)\")\n    for line in result[\"results\"]:\n        print(\"  \", line)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "emails: 3 | 3 classified"
+  },
+  {
+   "kind": "stdout",
+   "text": "   billing, super-step 1, got {'email': 'Cy: I was charged twice'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "   other, super-step 1, got {'email': 'Ana: parcel is late'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "   other, super-step 1, got {'email': 'Ben: no invoice'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "emails: 1 | 1 classified"
+  },
+  {
+   "kind": "stdout",
+   "text": "   billing, super-step 1, got {'email': 'Cy: I was charged twice'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "emails: 0 | (no summary)"
+  }
+ ]
+}

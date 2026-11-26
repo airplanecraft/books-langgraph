@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:16:25+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Without recursion_limit in the config, a loop stops at 10,007 super-steps.\nBook: Chapter 3, section 3.4\nRun: python ch03/limit_default.py\n\"\"\"\n# region: default\nfrom typing import Literal, TypedDict\n\nfrom langgraph.errors import GraphRecursionError\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    count: int\n    stop_at: int\n\n\ndef add_one(state: State) -> dict:\n    return {\"count\": state[\"count\"] + 1}\n\n\ndef after_add(state: State) -> Literal[\"add_one\", \"__end__\"]:\n    return END if state[\"count\"] >= state[\"stop_at\"] else \"add_one\"\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"add_one\", add_one)\nbuilder.add_edge(START, \"add_one\")\nbuilder.add_conditional_edges(\"add_one\", after_add)\ngraph = builder.compile()\n\nfor stop_at in (10006, 10007):\n    try:\n        result = graph.invoke({\"count\": 0, \"stop_at\": stop_at})  # ①\n        print(f\"{stop_at} node runs: finished with count {result['count']}\")\n    except GraphRecursionError:\n        print(f\"{stop_at} node runs: GraphRecursionError\")\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "10006 node runs: finished with count 10006"
+  },
+  {
+   "kind": "stdout",
+   "text": "10007 node runs: GraphRecursionError"
+  }
+ ]
+}

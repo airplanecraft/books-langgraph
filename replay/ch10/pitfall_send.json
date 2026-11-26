@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:50:07+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Two Send mistakes: no reducer on the results key, and no list of destinations.\nBook: Chapter 10, section 10.8\nRun: python ch10/pitfall_send.py\n\"\"\"\n# region: pitfalls\nfrom typing import TypedDict\n\nfrom langgraph.errors import InvalidUpdateError\nfrom langgraph.graph import START, StateGraph\nfrom langgraph.graph.state import CompiledStateGraph\nfrom langgraph.types import Send\n\n\nclass State(TypedDict):\n    emails: list[str]\n    results: list[str]  # ①\n\n\ndef fan_out(state: State) -> list[Send]:\n    return [Send(\"classify\", {\"email\": text}) for text in state[\"emails\"]]\n\n\ndef classify(item: dict) -> dict:\n    return {\"results\": [item[\"email\"].upper()]}\n\n\ndef build(destinations: list[str] | None) -> CompiledStateGraph:\n    builder = StateGraph(State)\n    builder.add_node(\"classify\", classify)\n    builder.add_conditional_edges(START, fan_out, destinations)  # ②\n    return builder.compile()\n\n\nfor emails in ([\"a\"], [\"a\", \"b\"]):\n    try:\n        result = build([\"classify\"]).invoke({\"emails\": emails, \"results\": []})\n        print(len(emails), result[\"results\"])\n    except InvalidUpdateError as error:\n        print(len(emails), \"InvalidUpdateError:\", str(error).splitlines()[0])\n\nfor destinations in ([\"classify\"], None):\n    edges = build(destinations).get_graph().edges\n    pairs = [(edge.source, edge.target) for edge in edges if edge.conditional]\n    print(destinations, pairs)  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "1 ['A']"
+  },
+  {
+   "kind": "stdout",
+   "text": "2 InvalidUpdateError: At key 'results': Can receive only one value per step. Use an Annotated key to handle multiple values."
+  },
+  {
+   "kind": "stdout",
+   "text": "['classify'] [('__start__', 'classify')]"
+  },
+  {
+   "kind": "stdout",
+   "text": "None [('__start__', '__end__')]"
+  }
+ ]
+}

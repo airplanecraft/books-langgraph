@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:34:03+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: a Literal routing function with a typo in one branch.\nBook: Chapter 3, section 3.6\nRun: python ch03/quiz_name.py\n\"\"\"\n# region: name\nimport operator\nfrom typing import Annotated, Literal, TypedDict\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    score: int\n    path: Annotated[list[str], operator.add]\n\n\ndef check(state: State) -> dict:\n    return {\"path\": [\"check\"]}\n\n\ndef route(state: State) -> Literal[\"urgent\", \"routine\"]:\n    return \"urgent\" if state[\"score\"] >= 5 else \"routin\"\n\n\ndef urgent(state: State) -> dict:\n    return {\"path\": [\"urgent\"]}\n\n\ndef routine(state: State) -> dict:\n    return {\"path\": [\"routine\"]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"check\", check)\nbuilder.add_node(\"urgent\", urgent)\nbuilder.add_node(\"routine\", routine)\nbuilder.add_edge(START, \"check\")\nbuilder.add_conditional_edges(\"check\", route)\nbuilder.add_edge(\"urgent\", END)\nbuilder.add_edge(\"routine\", END)\nrun = builder.compile().invoke\nfor score in (7, 2):\n    try:\n        print(\"score\", score, run({\"score\": score, \"path\": []})[\"path\"])\n    except KeyError as error:\n        print(\"score\", score, \"KeyError\", error)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "score 7 ['check', 'urgent']"
+  },
+  {
+   "kind": "stdout",
+   "text": "score 2 KeyError 'routin'"
+  }
+ ]
+}

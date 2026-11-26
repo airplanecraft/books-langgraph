@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "lesson": "01-your-first-graph",
+ "recordedAt": "2026-11-23T23:02:48+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Run two plain functions by hand, merging what each returns into the ticket.\nBook: Chapter 1, section 1.2\nRun: python ch01/plain_nodes.py\n\"\"\"\n# region: nodes\nfrom typing import TypedDict\n\n\nclass State(TypedDict):\n    customer: str\n    body: str\n    category: str\n    reply: str\n\n\ndef classify(state: State) -> dict:  # ①\n    category = \"billing\" if \"charged\" in state[\"body\"] else \"other\"\n    return {\"category\": category}\n\n\ndef draft(state: State) -> dict:  # ②\n    name, topic = state[\"customer\"], state[\"category\"]\n    return {\"reply\": f\"Hi {name}, we are checking your {topic} question.\"}\n\n\nticket: State = {\"customer\": \"Ana\", \"body\": \"I was charged twice for May.\",\n                 \"category\": \"unknown\", \"reply\": \"\"}\nslip = classify(ticket)  # ③\nprint(\"classify returned:\", slip)\nticket.update(slip)  # ④\nslip = draft(ticket)\nprint(\"draft returned:\", slip)\nticket.update(slip)\nprint(\"final:\")\nfor key, value in ticket.items():\n    print(\" \", key, \"=\", repr(value))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "classify returned: {'category': 'billing'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "draft returned: {'reply': 'Hi Ana, we are checking your billing question.'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "final:"
+  },
+  {
+   "kind": "stdout",
+   "text": "  customer = 'Ana'"
+  },
+  {
+   "kind": "stdout",
+   "text": "  body = 'I was charged twice for May.'"
+  },
+  {
+   "kind": "stdout",
+   "text": "  category = 'billing'"
+  },
+  {
+   "kind": "stdout",
+   "text": "  reply = 'Hi Ana, we are checking your billing question.'"
+  }
+ ]
+}

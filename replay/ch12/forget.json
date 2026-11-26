@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:22:59+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Two threads of one graph: what the first one learned, the second lacks.\nBook: Chapter 12, section 12.1\nRun: python ch12/forget.py\n\"\"\"\n# region: forget\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    greeting: str\n\n\ndef greet(state: State) -> dict:\n    name = state.get(\"customer\", \"(unknown)\")  # ①\n    return {\"greeting\": f\"Hello, {name}.\"}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"greet\", greet)\nbuilder.add_edge(START, \"greet\")\nbuilder.add_edge(\"greet\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nfor thread_id, given in [(\"monday\", {\"customer\": \"Ana\"}),\n                         (\"tuesday\", {})]:\n    config = {\"configurable\": {\"thread_id\": thread_id}}\n    graph.invoke(given, config)  # ②\n    saved = graph.get_state(config).values\n    copies = len(list(graph.get_state_history(config)))\n    print(thread_id, saved, copies, \"checkpoints\")  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "monday {'customer': 'Ana', 'greeting': 'Hello, Ana.'} 3 checkpoints"
+  },
+  {
+   "kind": "stdout",
+   "text": "tuesday {'greeting': 'Hello, (unknown).'} 3 checkpoints"
+  }
+ ]
+}

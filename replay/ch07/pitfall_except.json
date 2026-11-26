@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "07-asking-before-acting",
+ "recordedAt": "2026-11-24T02:54:55+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A bare except around interrupt swallows the pause.\nBook: Chapter 7, section 7.9\nRun: python ch07/pitfall_except.py\n\"\"\"\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import interrupt\n\n\nclass State(TypedDict):\n    status: str\n\n\n# region: swallowed\ndef review(state: State) -> dict:\n    try:\n        answer = interrupt(\"Send this reply?\")  # ①\n    except Exception as error:  # ②\n        print(\"caught:\", type(error).__name__)\n        answer = \"no answer\"\n    return {\"status\": answer}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"review\", review)\nbuilder.add_edge(START, \"review\")\nbuilder.add_edge(\"review\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\nresult = graph.invoke({\"status\": \"new\"}, config)\nprint(\"result:\", result)  # ③\nprint(\"next:\", graph.get_state(config).next)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "caught: GraphInterrupt"
+  },
+  {
+   "kind": "stdout",
+   "text": "result: {'status': 'no answer'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "next: ()"
+  }
+ ]
+}

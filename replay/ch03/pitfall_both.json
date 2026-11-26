@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:16:27+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A node returns a Command and also has an edge: both targets run.\nBook: Chapter 3, section 3.6\nRun: python ch03/pitfall_both.py\n\"\"\"\n# region: both\nfrom typing import Literal, TypedDict\n\nfrom langgraph.errors import InvalidUpdateError\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command\n\n\nclass State(TypedDict):\n    reply: str\n\n\ndef classify(state: State) -> Command[Literal[\"billing_reply\"]]:\n    return Command(goto=\"billing_reply\")  # ①\n\n\ndef billing_reply(state: State) -> dict:\n    return {\"reply\": \"billing\"}\n\n\ndef general_reply(state: State) -> dict:\n    return {\"reply\": \"general\"}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_node(\"billing_reply\", billing_reply)\nbuilder.add_node(\"general_reply\", general_reply)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_edge(\"classify\", \"general_reply\")  # ②\nbuilder.add_edge(\"billing_reply\", END)\nbuilder.add_edge(\"general_reply\", END)\ntry:\n    builder.compile().invoke({\"reply\": \"\"})\nexcept InvalidUpdateError as error:\n    print(str(error).splitlines()[0])  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "At key 'reply': Can receive only one value per step. Use an Annotated key to handle multiple values."
+  }
+ ]
+}

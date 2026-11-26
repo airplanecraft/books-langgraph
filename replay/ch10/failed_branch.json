@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:25+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"One parallel branch fails; the other branch's result is saved and not run again.\nBook: Chapter 10, section 10.7\nRun: python ch10/failed_branch.py\n\"\"\"\n# region: nodes\nimport operator\nfrom collections import Counter\nfrom typing import Annotated, Callable, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    notes: Annotated[list[str], operator.add]\n\n\nruns: list[str] = []\nplan_service_up = False\n\n\ndef make_note(label: str) -> Callable[[State], dict]:\n    def note(state: State) -> dict:\n        runs.append(label)  # ①\n        if label == \"plan\" and not plan_service_up:\n            raise RuntimeError(\"plan service down\")  # ②\n        return {\"notes\": [label]}\n\n    return note\n\n\nbuilder = StateGraph(State)\nfor label in (\"read\", \"order\", \"plan\", \"draft\"):\n    builder.add_node(label, make_note(label))\nbuilder.add_edge(START, \"read\")\nfor label in (\"order\", \"plan\"):\n    builder.add_edge(\"read\", label)\n    builder.add_edge(label, \"draft\")\nbuilder.add_edge(\"draft\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())  # ③\n# endregion\n\n# region: failed\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\ntry:\n    graph.invoke({\"notes\": []}, config)\nexcept RuntimeError as error:\n    print(\"raised:\", error)\nsnapshot = graph.get_state(config)\nprint(\"next:\", snapshot.next)  # ①\nfor task in sorted(snapshot.tasks, key=lambda task: task.name):\n    print(task.name, \"| result:\", task.result, \"| error:\", task.error)  # ②\n\nplan_service_up = True\nprint(\"resumed:\", graph.invoke(None, config)[\"notes\"])  # ③\nprint(\"runs:\", dict(sorted(Counter(runs).items())))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "raised: plan service down"
+  },
+  {
+   "kind": "stdout",
+   "text": "next: ('plan',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "order | result: {'notes': ['order']} | error: None"
+  },
+  {
+   "kind": "stdout",
+   "text": "plan | result: None | error: RuntimeError('plan service down')"
+  },
+  {
+   "kind": "stdout",
+   "text": "resumed: ['read', 'order', 'plan', 'draft']"
+  },
+  {
+   "kind": "stdout",
+   "text": "runs: {'draft': 1, 'order': 1, 'plan': 2, 'read': 1}"
+  }
+ ]
+}

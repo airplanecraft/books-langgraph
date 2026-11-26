@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:05+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A subgraph asks a question with interrupt; the parent has the checkpointer.\nBook: Chapter 11, section 11.5\nRun: python ch11/subgraph_interrupt.py\n\"\"\"\n# region: pause\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, interrupt\n\n\nclass Ticket(TypedDict):\n    order_id: str\n    answer: str\n\n\ndef ask(state: Ticket) -> dict:\n    print(\"  ask starts\")\n    reply = interrupt(f\"Refund order {state['order_id']}?\")  # ①\n    print(\"  ask got\", reply)\n    return {\"answer\": reply}\n\n\ninner = StateGraph(Ticket)\ninner.add_node(\"ask\", ask)\ninner.add_edge(START, \"ask\")\norders_graph = inner.compile()  # ②\n\nouter = StateGraph(Ticket)\nouter.add_node(\"orders\", orders_graph)  # ③\nouter.add_edge(START, \"orders\")\nouter.add_edge(\"orders\", END)\ngraph = outer.compile(checkpointer=InMemorySaver())  # ④\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\nresult = graph.invoke({\"order_id\": \"A17\"}, config)\nprint(\"asked:\", result[\"__interrupt__\"][0].value)  # ⑤\nprint(graph.invoke(Command(resume=\"yes\"), config))  # ⑥\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "  ask starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "asked: Refund order A17?"
+  },
+  {
+   "kind": "stdout",
+   "text": "  ask starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "  ask got yes"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'order_id': 'A17', 'answer': 'yes'}"
+  }
+ ]
+}

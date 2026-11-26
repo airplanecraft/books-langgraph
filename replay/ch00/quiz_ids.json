@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "00-foundations",
+ "recordedAt": "2026-11-23T23:10:02+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Backs a self-check question: the id of a message and the tool_call_id of a result.\nBook: Chapter 0, section 0.4\nRun: python ch00/quiz_ids.py   (no key needed)\n\"\"\"\n# region: quiz\nfrom langchain_core.messages import AIMessage, ToolMessage\n\nresult = ToolMessage(\"done\", tool_call_id=\"call_1\", id=\"t1\")\nplain = AIMessage(\"Hello\")\nprint(result.id, result.tool_call_id)\nprint(plain.id)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "t1 call_1"
+  },
+  {
+   "kind": "stdout",
+   "text": "None"
+  }
+ ]
+}

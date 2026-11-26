@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:23:02+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: a counter in the store, a note in the state.\nBook: Chapter 12, section 12.7\nRun: python ch12/quiz_counter.py\n\"\"\"\n# region: quiz\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.runtime import Runtime\nfrom langgraph.store.memory import InMemoryStore\n\n\nclass State(TypedDict):\n    seen: Annotated[list, operator.add]\n\n\ndef count(state: State, runtime: Runtime) -> dict:\n    item = runtime.store.get((\"shop\",), \"counter\")\n    number = item.value[\"n\"] + 1 if item else 1\n    runtime.store.put((\"shop\",), \"counter\", {\"n\": number})\n    return {\"seen\": [number]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"count\", count)\nbuilder.add_edge(START, \"count\")\nbuilder.add_edge(\"count\", END)\ngraph = builder.compile(checkpointer=InMemorySaver(), store=InMemoryStore())\nfor thread_id in [\"a\", \"a\", \"b\"]:\n    config = {\"configurable\": {\"thread_id\": thread_id}}\n    graph.invoke({\"seen\": []}, config)\nprint(graph.get_state(config).values[\"seen\"])\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "[3]"
+  }
+ ]
+}

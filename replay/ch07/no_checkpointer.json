@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "07-asking-before-acting",
+ "recordedAt": "2026-11-24T02:54:54+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Without a checkpointer the run still pauses, but it cannot be resumed.\nBook: Chapter 7, section 7.9\nRun: python ch07/no_checkpointer.py\n\"\"\"\n# region: missing\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, interrupt\n\n\nclass State(TypedDict):\n    status: str\n\n\ndef review(state: State) -> dict:\n    answer = interrupt(\"Send this reply?\")\n    return {\"status\": answer}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"review\", review)\nbuilder.add_edge(START, \"review\")\nbuilder.add_edge(\"review\", END)\ngraph = builder.compile()  # ①\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\nresult = graph.invoke({\"status\": \"new\"}, config)\nprint(\"paused:\", result[\"__interrupt__\"][0].value)  # ②\ntry:\n    graph.invoke(Command(resume=\"approve\"), config)  # ③\nexcept RuntimeError as error:\n    print(\"RuntimeError:\", error)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "paused: Send this reply?"
+  },
+  {
+   "kind": "stdout",
+   "text": "RuntimeError: Cannot use Command(resume=...) without checkpointer"
+  }
+ ]
+}

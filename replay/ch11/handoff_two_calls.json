@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:45:26+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A handoff in a reply that holds a second tool call: the next agent reads an open request.\nBook: Chapter 11, section 11.9\nRun: python ch11/handoff_two_calls.py\n\"\"\"\nfrom langchain_core.messages import SystemMessage, ToolMessage\nfrom langchain_core.tools import tool\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, ToolRuntime, tools_condition\nfrom langgraph.types import Command\n\n\ndef build_agent(name: str, model: object, tools: list,\n                role: str = \"\") -> object:\n    def call_model(state: MessagesState) -> dict:\n        history = state[\"messages\"]\n        print(f\"  {name} reads\", [message.type for message in history])  # ①\n        if role:\n            history = [SystemMessage(role)] + history  # ②\n        return {\"messages\": [model.invoke(history)]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", tools_condition)\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile()\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return {\"A17\": \"shipped on 18 November\"}.get(order_id, \"unknown\")\n\n\n@tool\ndef refund_order(order_id: str) -> str:\n    \"\"\"Start the refund of an order by its ID.\"\"\"\n    return f\"refund started for {order_id}\"\n\n\n@tool\ndef transfer_to_billing(runtime: ToolRuntime) -> Command:  # ①\n    \"\"\"Pass the customer to the billing agent, for refunds and invoices.\"\"\"\n    request = runtime.state[\"messages\"][-1]  # ②\n    answer = ToolMessage(\"Passed to billing.\",\n                         tool_call_id=runtime.tool_call_id)\n    return Command(graph=Command.PARENT, goto=\"billing\",  # ③\n                   update={\"messages\": [request, answer]})  # ④\n\n\n# region: two_calls\nfrom langchain_core.messages import AIMessage\nfrom langgraph.graph import END\n\nfrom common import ScriptedModel\n\n\ndef billing(state: MessagesState) -> None:\n    messages = state[\"messages\"]\n    answered = [m.tool_call_id for m in messages if m.type == \"tool\"]\n    asked = [call[\"id\"] for m in messages if m.type == \"ai\"\n             for call in m.tool_calls]\n    print(\"  billing reads\", [message.type for message in messages])  # ①\n    print(\"  open requests:\", [i for i in asked if i not in answered])  # ②\n\n\nboth = AIMessage(content=\"\", tool_calls=[  # ③\n    {\"name\": \"lookup_order\", \"args\": {\"order_id\": \"A17\"}, \"id\": \"call_1\"},\n    {\"name\": \"transfer_to_billing\", \"args\": {}, \"id\": \"call_2\"}])\ntools = [lookup_order, transfer_to_billing]\nmodel = ScriptedModel(script=[both]).bind_tools(tools)\nouter = StateGraph(MessagesState)\nouter.add_node(\"support\", build_agent(\"support\", model, tools),\n               destinations=(\"billing\",))\nouter.add_node(\"billing\", billing)\nouter.add_edge(START, \"support\")\nouter.add_edge(\"billing\", END)\nouter.compile().invoke({\"messages\": [(\"user\", \"Refund A17, please.\")]})\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "  support reads ['human']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  billing reads ['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  open requests: ['call_1']"
+  }
+ ]
+}

@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "lesson": "00-foundations",
+ "recordedAt": "2026-11-23T23:09:54+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Send one message to a chat model and print its reply.\nBook: Chapter 0, section 0.2\nRun: python ch00/hello_model.py   (or OFFLINE=1 python ch00/hello_model.py)\n\"\"\"\n# region: hello\nfrom common import get_model\n\nmodel = get_model()\nquestion = \"In one sentence, what is a chat model?\"\nmessages = [{\"role\": \"user\", \"content\": question}]\nreply = model.invoke(messages)\nprint(type(reply).__name__)\nprint(reply.content)\nprint(\"extra fields:\", sorted(reply.additional_kwargs))\nprint(\"has id:\", reply.id is not None)\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"A chat model is an AI system trained to understand and generate conversational text in response to user messages.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer one sentence. Need define chat model. Likely \\\"A chat model is an AI system trained to understand and generate conversational text in response to user messages.\\\" One sentence. Need concise. Ensure not too verbose.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 66, \"prompt_tokens\": 40, \"total_tokens\": 106, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 45, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 40}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"480cccd9-5ae8-42f4-b718-f0a8c0553dc2\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20aac-43b9-7473-a058-90c32a5bd85e-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 40, \"output_tokens\": 66, \"total_tokens\": 106, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 45}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "AIMessage"
+  },
+  {
+   "kind": "stdout",
+   "text": "A chat model is an AI system trained to understand and generate conversational text in response to user messages."
+  },
+  {
+   "kind": "stdout",
+   "text": "extra fields: ['reasoning_content', 'refusal']"
+  },
+  {
+   "kind": "stdout",
+   "text": "has id: True"
+  }
+ ]
+}

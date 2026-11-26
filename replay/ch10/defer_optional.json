@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:24+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Deferred node: separate edges, a list edge and defer=True when a branch may be skipped.\nBook: Chapter 10, section 10.5\nRun: python ch10/defer_optional.py\n\"\"\"\nimport operator\nfrom typing import Annotated, Callable, TypedDict\n\nfrom langchain_core.runnables import RunnableConfig\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.graph.state import CompiledStateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list[str], operator.add]\n\n\ndef make_step(label: str) -> Callable[[State, RunnableConfig], dict]:\n    def step(state: State, config: RunnableConfig) -> dict:\n        number = config[\"metadata\"][\"langgraph_step\"]\n        seen = len(state[\"notes\"])\n        note = f\"{label}: super-step {number}, notes seen {seen}\"\n        return {\"notes\": [note]}\n\n    return step\n\n\n# region: optional\ndef build(kind: str, chosen: list[str]) -> CompiledStateGraph:\n    def pick(state: State) -> list[str]:\n        return chosen  # ①\n\n    builder = StateGraph(State)\n    for label in (\"read\", \"order\", \"policy\", \"shipping\"):\n        builder.add_node(label, make_step(label))\n    deferred = kind == \"defer\"\n    builder.add_node(\"draft\", make_step(\"draft\"), defer=deferred)\n    builder.add_edge(START, \"read\")\n    builder.add_conditional_edges(\"read\", pick, [\"order\", \"shipping\"])  # ②\n    builder.add_edge(\"order\", \"policy\")\n    if kind == \"list\":\n        builder.add_edge([\"policy\", \"shipping\"], \"draft\")\n    else:\n        builder.add_edge(\"policy\", \"draft\")\n        builder.add_edge(\"shipping\", \"draft\")\n    builder.add_edge(\"draft\", END)\n    return builder.compile()\n\n\nfor chosen in ([\"order\"], [\"order\", \"shipping\"]):\n    for kind in (\"list\", \"separate\", \"defer\"):\n        graph = build(kind, chosen)\n        notes = graph.invoke({\"customer\": \"Ana\", \"notes\": []})[\"notes\"]\n        runs = len([note for note in notes if note.startswith(\"draft\")])\n        print(chosen, kind, \"draft ran\", runs, \"time(s)\")  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['order'] list draft ran 0 time(s)"
+  },
+  {
+   "kind": "stdout",
+   "text": "['order'] separate draft ran 1 time(s)"
+  },
+  {
+   "kind": "stdout",
+   "text": "['order'] defer draft ran 1 time(s)"
+  },
+  {
+   "kind": "stdout",
+   "text": "['order', 'shipping'] list draft ran 1 time(s)"
+  },
+  {
+   "kind": "stdout",
+   "text": "['order', 'shipping'] separate draft ran 2 time(s)"
+  },
+  {
+   "kind": "stdout",
+   "text": "['order', 'shipping'] defer draft ran 1 time(s)"
+  }
+ ]
+}

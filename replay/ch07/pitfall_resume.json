@@ -1,0 +1,54 @@
+{
+ "version": 1,
+ "lesson": "07-asking-before-acting",
+ "recordedAt": "2026-11-24T02:54:54+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A plain invoke on a paused thread starts a new run; a resume on another thread starts one too.\nBook: Chapter 7, section 7.9\nRun: python ch07/pitfall_resume.py\n\"\"\"\n# region: wrong\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, interrupt\n\n\nclass State(TypedDict):\n    status: str\n\n\ndef look_up(state: State) -> dict:\n    print(\"look_up runs\")\n    return {}\n\n\ndef review(state: State) -> dict:\n    print(\"review starts\")\n    return {\"status\": interrupt(\"Send this reply?\")}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"look_up\", look_up)\nbuilder.add_node(\"review\", review)\nbuilder.add_edge(START, \"look_up\")\nbuilder.add_edge(\"look_up\", \"review\")\nbuilder.add_edge(\"review\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\nana = {\"configurable\": {\"thread_id\": \"ana\"}}\nben = {\"configurable\": {\"thread_id\": \"ben\"}}\ngraph.invoke({\"status\": \"new\"}, ana)\nagain = graph.invoke({\"status\": \"new\"}, ana)  # ①\nprint(\"plain invoke on ana:\", again[\"__interrupt__\"][0].value)\ngraph.invoke(Command(resume=\"approve\"), ben)  # ②\ntry:\n    graph.invoke(Command(resume=None), ben)  # ③\nexcept UnboundLocalError as error:\n    print(\"resume=None:\", type(error).__name__, graph.get_state(ben).next)\nother = {\"configurable\": {\"thread_id\": \"ana\"}}  # ④\nprint(\"other code:\", graph.invoke(Command(resume=\"yes\"), other)[\"status\"])\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "look_up runs"
+  },
+  {
+   "kind": "stdout",
+   "text": "review starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "look_up runs"
+  },
+  {
+   "kind": "stdout",
+   "text": "review starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "plain invoke on ana: Send this reply?"
+  },
+  {
+   "kind": "stdout",
+   "text": "look_up runs"
+  },
+  {
+   "kind": "stdout",
+   "text": "review starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "resume=None: UnboundLocalError ('review',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "review starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "other code: yes"
+  }
+ ]
+}

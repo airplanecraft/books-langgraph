@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:22:08+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"invoke(None) needs a saved copy; on a finished thread it runs nothing.\nBook: Chapter 9, section 9.7\nRun: python ch09/pitfall_none.py\n\"\"\"\n# region: none\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n\n\ndef send(state: State) -> dict:\n    print(\"send runs\")\n    return {}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"send\", send)\nbuilder.add_edge(START, \"send\")\nbuilder.add_edge(\"send\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\ntry:\n    graph.invoke(None, config)  # ①\nexcept Exception as error:\n    print(\"new thread:\", type(error).__name__)\ngraph.invoke({\"customer\": \"Ana\"}, config)\nprint(\"second call:\")\ngraph.invoke(None, config)  # ②\nprint(\"copies:\", len(list(graph.get_state_history(config))))  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "new thread: EmptyInputError"
+  },
+  {
+   "kind": "stdout",
+   "text": "send runs"
+  },
+  {
+   "kind": "stdout",
+   "text": "second call:"
+  },
+  {
+   "kind": "stdout",
+   "text": "copies: 3"
+  }
+ ]
+}

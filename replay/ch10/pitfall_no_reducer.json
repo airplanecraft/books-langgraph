@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:23+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Two parallel nodes: different keys work, the same plain key raises.\nBook: Chapter 10, section 10.3\nRun: python ch10/pitfall_no_reducer.py\n\"\"\"\n# region: conflict\nfrom typing import TypedDict\n\nfrom langgraph.errors import InvalidUpdateError\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.graph.state import CompiledStateGraph\n\n\nclass State(TypedDict):\n    order_note: str\n    plan_note: str\n    reply: str\n\n\ndef build(order_key: str, plan_key: str) -> CompiledStateGraph:\n    def order(state: State) -> dict:\n        return {order_key: \"from order\"}  # ①\n\n    def plan(state: State) -> dict:\n        return {plan_key: \"from plan\"}  # ②\n\n    builder = StateGraph(State)\n    builder.add_node(\"order\", order)\n    builder.add_node(\"plan\", plan)\n    for name in (\"order\", \"plan\"):\n        builder.add_edge(START, name)\n        builder.add_edge(name, END)\n    return builder.compile()\n\n\nblank = {\"order_note\": \"\", \"plan_note\": \"\", \"reply\": \"\"}\nfor keys in ((\"order_note\", \"plan_note\"), (\"reply\", \"reply\")):\n    try:\n        print(keys, build(*keys).invoke(blank))\n    except InvalidUpdateError as error:\n        print(keys, \"InvalidUpdateError:\", str(error).splitlines()[0])  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "('order_note', 'plan_note') {'order_note': 'from order', 'plan_note': 'from plan', 'reply': ''}"
+  },
+  {
+   "kind": "stdout",
+   "text": "('reply', 'reply') InvalidUpdateError: At key 'reply': Can receive only one value per step. Use an Annotated key to handle multiple values."
+  }
+ ]
+}

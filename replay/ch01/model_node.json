@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "01-your-first-graph",
+ "recordedAt": "2026-11-23T23:03:00+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A graph whose second node asks the chat model to write the reply.\nBook: Chapter 1, section 1.6\nRun: python ch01/model_node.py   (or OFFLINE=1 python ch01/model_node.py)\n\"\"\"\n# region: ask\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\nfrom common import get_model  # the helper from chapter 0\n\nmodel = get_model()\n\n\nclass State(TypedDict):\n    customer: str\n    body: str\n    category: str\n    reply: str\n\n\ndef classify(state: State) -> dict:\n    category = \"billing\" if \"charged\" in state[\"body\"] else \"other\"\n    return {\"category\": category}\n\n\ndef draft(state: State) -> dict:\n    prompt = (f\"Write a one-sentence reply to {state['customer']}, who wrote \"\n              f\"about {state['category']}: {state['body']}\")\n    answer = model.invoke([{\"role\": \"user\", \"content\": prompt}])  # ①\n    return {\"reply\": answer.content}  # ②\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_node(\"draft\", draft)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_edge(\"classify\", \"draft\")\nbuilder.add_edge(\"draft\", END)\ngraph = builder.compile()\n\nticket = {\"customer\": \"Ana\", \"body\": \"I was charged twice for May.\",\n          \"category\": \"unknown\", \"reply\": \"\"}\nprint(graph.invoke(ticket)[\"reply\"])  # ③\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"Thanks for flagging this, Ana\\u2014I\\u2019m sorry about the duplicate May charge; please share the transaction details so we can verify and refund it promptly.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer one-sentence reply to Ana about billing charged twice for May. Need craft professional concise. One sentence reply. Maybe \\\"Hi Ana, I'm sorry to hear you were charged twice for May\\u2014please send us the two charge details and we'll investigate and refund any duplicate right away.\\\" One sentence. Ensure reply to Ana. Could be \\\"Thanks for flagging this, Ana\\u2014I\\u2019m sorry about the duplicate May charge; please share the transaction details so we can verify and refund it promptly.\\\" One sentence. Good.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 141, \"prompt_tokens\": 51, \"total_tokens\": 192, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 108, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 51}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"049d4cc7-b154-4245-be8e-3d2d9252a7b0\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20aa5-ecba-75ee-a5d2-d93fa045c8a8-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 51, \"output_tokens\": 141, \"total_tokens\": 192, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 108}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "Thanks for flagging this, Ana—I’m sorry about the duplicate May charge; please share the transaction details so we can verify and refund it promptly."
+  }
+ ]
+}

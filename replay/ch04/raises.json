@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T01:02:34+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"An exception inside a tool stops the run.\nBook: Chapter 4, section 4.8\nRun: python ch04/raises.py\n\"\"\"\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n# region: helper\nfrom collections.abc import Callable\n\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\nfrom common import ScriptedModel  # the stand-in model of chapter 0\n\n\ndef build(script: list, tools: list, router: Callable = tools_condition,\n          verbose: bool = False) -> tuple:\n    model = ScriptedModel(script=script).bind_tools(tools)\n\n    def call_model(state: MessagesState) -> dict:\n        if verbose:\n            kinds = [message.type for message in state[\"messages\"]]\n            print(\"model node receives\", len(kinds), kinds)\n        return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", router)  # ①\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile(), model\n# endregion\n\n# region: raises\nfrom langchain_core.tools import tool\n\nfrom common import ask_for, say  # the helpers from chapter 0\n\n\n@tool\ndef refund_order(order_id: str) -> str:\n    \"\"\"Refund an order by its ID.\"\"\"\n    raise ConnectionError(\"payment service is down\")  # ①\n\n\nrefund = ask_for(\"refund_order\", {\"order_id\": \"B42\"}, \"call_1\")\ngraph, _ = build([refund, say(\"Your refund is on its way.\")], [refund_order])\nquestion = {\"role\": \"user\", \"content\": \"Please refund order B42.\"}\ntry:\n    graph.invoke({\"messages\": [question]})\nexcept ConnectionError as error:  # ②\n    print(\"run stopped:\", type(error).__name__, \"|\", error)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "run stopped: ConnectionError | payment service is down"
+  }
+ ]
+}

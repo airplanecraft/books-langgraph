@@ -1,0 +1,62 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:24:21+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"What the update of a handoff decides: what the billing node reads.\nBook: Chapter 11, section 11.7\nRun: python ch11/handoff_update.py\n\"\"\"\nfrom langchain_core.messages import SystemMessage, ToolMessage\nfrom langchain_core.tools import tool\nfrom langgraph.graph import END, START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, ToolRuntime, tools_condition\nfrom langgraph.types import Command\n\nfrom common import ScriptedModel, ask_for\n\n\n\n\ndef build_agent(name: str, model: object, tools: list,\n                role: str = \"\") -> object:\n    def call_model(state: MessagesState) -> dict:\n        history = state[\"messages\"]\n        print(f\"  {name} reads\", [message.type for message in history])  # ①\n        if role:\n            history = [SystemMessage(role)] + history  # ②\n        return {\"messages\": [model.invoke(history)]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", tools_condition)\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile()\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return \"shipped on 18 November\"\n\n\n# region: compare\nfrom langgraph.graph import END\n\nfrom common import ScriptedModel, ask_for\n\n\ndef make_handoff(share: str) -> object:\n    @tool\n    def transfer_to_billing(runtime: ToolRuntime) -> Command:\n        \"\"\"Pass the customer to the billing agent.\"\"\"\n        history = runtime.state[\"messages\"]\n        answer = ToolMessage(\"Passed to billing.\",\n                             tool_call_id=runtime.tool_call_id)\n        choices = {\"pair\": [history[-1], answer],  # ①\n                   \"nothing\": [],  # ②\n                   \"all\": history + [answer]}  # ③\n        return Command(graph=Command.PARENT, goto=\"billing\",\n                       update={\"messages\": choices[share]})\n    return transfer_to_billing\n\n\ndef billing(state: MessagesState) -> None:\n    kinds = [message.type for message in state[\"messages\"]]\n    print(\"  billing reads\", kinds)\n\n\nscript = [ask_for(\"lookup_order\", {\"order_id\": \"A17\"}, \"call_1\"),\n          ask_for(\"transfer_to_billing\", {}, \"call_2\")]\nfor share in (\"pair\", \"nothing\", \"all\"):  # ④\n    print(share)\n    tools = [lookup_order, make_handoff(share)]\n    model = ScriptedModel(script=script).bind_tools(tools)\n    outer = StateGraph(MessagesState)\n    outer.add_node(\"support\", build_agent(\"support\", model, tools),\n                   destinations=(\"billing\",))\n    outer.add_node(\"billing\", billing)\n    outer.add_edge(START, \"support\")\n    outer.add_edge(\"billing\", END)\n    outer.compile().invoke({\"messages\": [(\"user\", \"Refund A17, please.\")]})\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "pair"
+  },
+  {
+   "kind": "stdout",
+   "text": "  support reads ['human']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  support reads ['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  billing reads ['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "nothing"
+  },
+  {
+   "kind": "stdout",
+   "text": "  support reads ['human']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  support reads ['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  billing reads ['human']"
+  },
+  {
+   "kind": "stdout",
+   "text": "all"
+  },
+  {
+   "kind": "stdout",
+   "text": "  support reads ['human']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  support reads ['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "  billing reads ['human', 'ai', 'tool', 'ai', 'tool']"
+  }
+ ]
+}

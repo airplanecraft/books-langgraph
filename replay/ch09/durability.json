@@ -1,0 +1,46 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:22:07+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Copies saved under each durability mode, and whether the run can go on.\nBook: Chapter 9, section 9.6\nRun: python ch09/durability.py\n\"\"\"\n# region: graph\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\nmail_server = {\"up\": True}\n\n\nclass State(TypedDict):\n    customer: str\n\n\ndef send(state: State) -> dict:\n    if not mail_server[\"up\"]:\n        raise ConnectionError(\"mail server unreachable\")\n    return {}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"read\", lambda state: {})  # these two change nothing\nbuilder.add_node(\"send\", send)\nbuilder.add_node(\"close\", lambda state: {})\nbuilder.add_edge(START, \"read\")\nbuilder.add_edge(\"read\", \"send\")\nbuilder.add_edge(\"send\", \"close\")\nbuilder.add_edge(\"close\", END)\n# endregion\n\n\n# region: modes\ndef run(mode: str | None, up: bool) -> None:\n    mail_server[\"up\"] = up\n    graph = builder.compile(checkpointer=InMemorySaver())\n    config = {\"configurable\": {\"thread_id\": \"ana\"}}\n    try:\n        graph.invoke({\"customer\": \"Ana\"}, config, durability=mode)  # ①\n    except ConnectionError:\n        pass\n    copies = len(list(graph.get_state_history(config)))\n    waiting = graph.get_state(config).next\n    mail_server[\"up\"] = True\n    graph.invoke(None, config, durability=mode)  # ②\n    then = graph.get_state(config).next\n    print(f\"{mode} up={up}: copies={copies} next={waiting} then={then}\")\n\n\nfor mode in (None, \"sync\", \"async\", \"exit\"):  # ③\n    run(mode, True)\n    run(mode, False)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "None up=True: copies=5 next=() then=()"
+  },
+  {
+   "kind": "stdout",
+   "text": "None up=False: copies=3 next=('send',) then=()"
+  },
+  {
+   "kind": "stdout",
+   "text": "sync up=True: copies=5 next=() then=()"
+  },
+  {
+   "kind": "stdout",
+   "text": "sync up=False: copies=3 next=('send',) then=()"
+  },
+  {
+   "kind": "stdout",
+   "text": "async up=True: copies=5 next=() then=()"
+  },
+  {
+   "kind": "stdout",
+   "text": "async up=False: copies=3 next=('send',) then=()"
+  },
+  {
+   "kind": "stdout",
+   "text": "exit up=True: copies=1 next=() then=()"
+  },
+  {
+   "kind": "stdout",
+   "text": "exit up=False: copies=1 next=('send',) then=()"
+  }
+ ]
+}

@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "08-time-travel",
+ "recordedAt": "2026-11-24T03:15:58+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: update_state on an older copy with a reducer key and as_node.\nBook: Chapter 8, section 8.5\nRun: python ch08/quiz_fork.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    items: Annotated[list, operator.add]\n    status: str\n\n\ndef one(state: State) -> dict:\n    return {\"items\": [\"a\"], \"status\": \"one\"}\n\n\ndef two(state: State) -> dict:\n    return {\"items\": [\"b\"], \"status\": \"two\"}\n\n\ndef three(state: State) -> dict:\n    return {\"items\": [\"c\"], \"status\": \"three\"}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"one\", one)\nbuilder.add_node(\"two\", two)\nbuilder.add_node(\"three\", three)\nbuilder.add_edge(START, \"one\")\nbuilder.add_edge(\"one\", \"two\")\nbuilder.add_edge(\"two\", \"three\")\nbuilder.add_edge(\"three\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"q2\"}}\ngraph.invoke({\"items\": [], \"status\": \"\"}, config)\nbefore_two = next(snapshot for snapshot in graph.get_state_history(config)\n                  if snapshot.next == (\"two\",))\nupdate = {\"items\": [\"x\"], \"status\": \"edited\"}\nfork = graph.update_state(before_two.config, update)\nprint(graph.get_state(fork).values, graph.get_state(fork).next)\nskip = graph.update_state(before_two.config, update, as_node=\"two\")\nprint(graph.get_state(skip).next)\nprint(graph.invoke(None, skip)[\"items\"])\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'items': ['a', 'x'], 'status': 'edited'} ('two',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "('three',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "['a', 'x', 'c']"
+  }
+ ]
+}

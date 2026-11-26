@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:49:09+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Two misses: a later call without context, and a graph without a store.\nBook: Chapter 12, section 12.8\nRun: python ch12/pitfall_missing.py\n\"\"\"\n# region: missing\nfrom dataclasses import dataclass\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.runtime import Runtime\nfrom langgraph.store.memory import InMemoryStore\n\n\n@dataclass(frozen=True)\nclass Context:\n    user_id: str\n\n\nclass State(TypedDict, total=False):\n    done: bool\n\n\ndef work(state: State, runtime: Runtime[Context]) -> dict:\n    user = runtime.context.user_id  # ①\n    runtime.store.put((\"users\", user), \"seen\", {\"yes\": True})  # ②\n    return {\"done\": True}\n\n\nbuilder = StateGraph(State, context_schema=Context)\nbuilder.add_node(\"work\", work)\nbuilder.add_edge(START, \"work\")\nbuilder.add_edge(\"work\", END)\nfull = builder.compile(checkpointer=InMemorySaver(), store=InMemoryStore())\nno_store = builder.compile()  # ③\n# endregion\n\n# region: calls\nconfig = {\"configurable\": {\"thread_id\": \"monday\"}}\ncalls = [(full, Context(\"ana\")), (full, None), (no_store, Context(\"ana\"))]\nfor graph, given in calls:\n    try:\n        print(graph.invoke({}, config, context=given))  # ①\n    except AttributeError as error:\n        print(\"AttributeError:\", error)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'done': True}"
+  },
+  {
+   "kind": "stdout",
+   "text": "AttributeError: 'NoneType' object has no attribute 'user_id'"
+  },
+  {
+   "kind": "stdout",
+   "text": "AttributeError: 'NoneType' object has no attribute 'put'"
+  }
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:23:01+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"State, runtime context and store side by side, over three calls.\nBook: Chapter 12, section 12.7\nRun: python ch12/where.py\n\"\"\"\n# region: where\nimport operator\nfrom dataclasses import dataclass\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.runtime import Runtime\nfrom langgraph.store.memory import InMemoryStore\n\n\n@dataclass(frozen=True)\nclass Context:\n    user_id: str\n\n\nclass State(TypedDict):\n    notes: Annotated[list, operator.add]\n\n\ndef visit(state: State, runtime: Runtime[Context]) -> dict:\n    where = (\"users\", runtime.context.user_id)\n    item = runtime.store.get(where, \"visits\")\n    count = item.value[\"count\"] + 1 if item else 1  # ①\n    runtime.store.put(where, \"visits\", {\"count\": count})\n    return {\"notes\": [f\"visit {count}\"]}\n\n\nbuilder = StateGraph(State, context_schema=Context)\nbuilder.add_node(\"visit\", visit)\nbuilder.add_edge(START, \"visit\")\nbuilder.add_edge(\"visit\", END)\nstore = InMemoryStore()\ngraph = builder.compile(checkpointer=InMemorySaver(), store=store)\n# endregion\n\n# region: calls\nfor thread_id in [\"monday\", \"monday\", \"tuesday\"]:\n    config = {\"configurable\": {\"thread_id\": thread_id}}\n    graph.invoke({\"notes\": []}, config, context=Context(\"ana\"))\n    notes = graph.get_state(config).values[\"notes\"]  # ①\n    count = store.get((\"users\", \"ana\"), \"visits\").value[\"count\"]  # ②\n    print(thread_id, notes, \"| store count:\", count)\n\nsnapshot = graph.get_state(config)\nprint(list(snapshot.values), list(snapshot.config[\"configurable\"]))  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "monday ['visit 1'] | store count: 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "monday ['visit 1', 'visit 2'] | store count: 2"
+  },
+  {
+   "kind": "stdout",
+   "text": "tuesday ['visit 3'] | store count: 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "['notes'] ['thread_id', 'checkpoint_ns', 'checkpoint_id']"
+  }
+ ]
+}

@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "07-asking-before-acting",
+ "recordedAt": "2026-11-24T02:25:38+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A reply is drafted by the model, a person approves it, then it is sent.\nBook: Chapter 7, section 7.5\nRun: python ch07/approve.py   (or OFFLINE=1 python ch07/approve.py)\n\"\"\"\n# region: nodes\nfrom typing import Literal, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, interrupt\n\nfrom common import get_model  # the helper from chapter 0\n\nmodel = get_model()\n\n\nclass State(TypedDict):\n    customer: str\n    email: str\n    draft: str\n    status: str\n\n\ndef draft_reply(state: State) -> dict:  # ①\n    prompt = (f\"Write a two-sentence reply to {state['customer']}, who \"\n              f\"wrote: {state['email']}\")\n    answer = model.invoke([{\"role\": \"user\", \"content\": prompt}])\n    return {\"draft\": answer.content}\n\n\ndef review(state: State) -> Command[Literal[\"send\", \"__end__\"]]:  # ②\n    question = {\"question\": \"Send this reply?\", \"draft\": state[\"draft\"]}\n    answer = interrupt(question)  # ③\n    if answer == \"approve\":\n        return Command(goto=\"send\", update={\"status\": \"approved\"})\n    return Command(goto=END, update={\"status\": \"rejected\"})\n\n\ndef send(state: State) -> dict:\n    print(\"SENT to\", state[\"customer\"])  # stands for the mail service\n    return {\"status\": \"sent\"}\n# endregion\n\n# region: run\nbuilder = StateGraph(State)\nbuilder.add_node(\"draft_reply\", draft_reply)\nbuilder.add_node(\"review\", review)\nbuilder.add_node(\"send\", send)\nbuilder.add_edge(START, \"draft_reply\")\nbuilder.add_edge(\"draft_reply\", \"review\")\nbuilder.add_edge(\"send\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())  # ①\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\nticket = {\"customer\": \"Ana\", \"email\": \"Where is my order B42? It is late.\"}\npaused = graph.invoke(ticket, config)\nquestion = paused[\"__interrupt__\"][0].value  # ②\nprint(\"question:\", question[\"question\"])\nprint(\"draft shown:\", question[\"draft\"])\nprint(\"next:\", graph.get_state(config).next)\n\ndone = graph.invoke(Command(resume=\"approve\"), config)  # ③\nprint(\"status:\", done[\"status\"])\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I\\u2019m sorry your order B42 is late, Ana. I\\u2019m checking its status now and will update you as soon as I have a delivery estimate.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer two-sentence reply to Ana. Need address order B42 late. Need likely empathetic, actionable, ask? We as assistant maybe customer service. Need two sentences. Could say: \\\"I'm sorry your order B42 is late, Ana. I\\u2019m checking its status now and will update you as soon as I have a delivery estimate.\\\" That's two sentences. Need perhaps \\\"Thank you for reaching out\\\". Keep concise. Ensure exactly two sentences. Final only.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 131, \"prompt_tokens\": 53, \"total_tokens\": 184, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 97, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 53}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"83988448-caa3-43f6-998e-ad539885a99a\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b5f-6e95-7269-9c8e-240abe8bc058-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 53, \"output_tokens\": 131, \"total_tokens\": 184, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 97}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "question: Send this reply?"
+  },
+  {
+   "kind": "stdout",
+   "text": "draft shown: I’m sorry your order B42 is late, Ana. I’m checking its status now and will update you as soon as I have a delivery estimate."
+  },
+  {
+   "kind": "stdout",
+   "text": "next: ('review',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "SENT to Ana"
+  },
+  {
+   "kind": "stdout",
+   "text": "status: sent"
+  }
+ ]
+}

@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "06-streaming",
+ "recordedAt": "2026-11-24T01:33:28+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Mistake: a list of one mode gives tuples, not plain items\nBook: Chapter 6, section 6.6\nRun: python ch06/pitfall_shape.py\n\"\"\"\n# region: quiet\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    count: int\n\n\ndef read(state: State) -> dict:\n    return {\"count\": state[\"count\"] + 1}\n\n\ndef look(state: State) -> None:  # ①\n    \"\"\"Reads the state and changes nothing.\"\"\"\n\n\ndef tidy(state: State) -> dict:  # ②\n    return {}\n\n\ndef save(state: State) -> dict:\n    return {\"count\": state[\"count\"] + 1}\n\n\nbuilder = StateGraph(State)\nfor node in (read, look, tidy, save):\n    builder.add_node(node)\nbuilder.add_edge(START, \"read\")\nbuilder.add_edge(\"read\", \"look\")\nbuilder.add_edge(\"look\", \"tidy\")\nbuilder.add_edge(\"tidy\", \"save\")\nbuilder.add_edge(\"save\", END)\ngraph = builder.compile()\n\nstart = {\"count\": 0}\n# endregion\n\n# region: pitfall_shape\none = list(graph.stream(start, stream_mode=\"updates\"))  # ①\nmany = list(graph.stream(start, stream_mode=[\"updates\"]))  # ②\nprint(type(one[0]).__name__, one[0])\nprint(type(many[0]).__name__, many[0])\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "dict {'read': {'count': 1}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "tuple ('updates', {'read': {'count': 1}})"
+  }
+ ]
+}

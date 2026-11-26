@@ -1,0 +1,46 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:49:09+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Store namespaces: a tuple per tab, prefix search, misses, limit.\nBook: Chapter 12, section 12.4\nRun: python ch12/namespaces.py\n\"\"\"\n# region: tabs\nfrom langgraph.store.memory import InMemoryStore\n\nstore = InMemoryStore()\nstore.put((\"users\", \"ana\"), \"prefs\", {\"tone\": \"short\"})\nstore.put((\"users\", \"ana\"), \"address\", {\"city\": \"Lyon\"})\nstore.put((\"users\", \"ben\"), \"prefs\", {\"tone\": \"formal\"})\n\n\ndef show(label: str, items: list) -> None:\n    paths = [\"/\".join(item.namespace + (item.key,)) for item in items]\n    print(label, paths)  # ①\n\n\nshow(\"ana tab  \", store.search((\"users\", \"ana\")))  # ②\nshow(\"all users\", store.search((\"users\",)))  # ③\nshow(\"no such  \", store.search((\"users\", \"zed\")))  # ④\nshow(\"filtered \", store.search((\"users\",), filter={\"tone\": \"short\"}))  # ⑤\nprint(\"typo     \", store.get((\"user\", \"ana\"), \"prefs\"))  # ⑥\n\nstore.put(\"users\", \"note\", {\"text\": \"no comma\"})  # ⑦\nprint(\"tuple    \", store.get((\"users\",), \"note\"))\nprint(\"string   \", store.get(\"users\", \"note\").namespace)\n\nfor number in range(12):  # ⑧\n    store.put((\"log\",), f\"entry{number}\", {\"n\": number})\nprint(\"log      \", len(store.search((\"log\",))),\n      len(store.search((\"log\",), limit=100)))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "ana tab   ['users/ana/prefs', 'users/ana/address']"
+  },
+  {
+   "kind": "stdout",
+   "text": "all users ['users/ana/prefs', 'users/ana/address', 'users/ben/prefs']"
+  },
+  {
+   "kind": "stdout",
+   "text": "no such   []"
+  },
+  {
+   "kind": "stdout",
+   "text": "filtered  ['users/ana/prefs']"
+  },
+  {
+   "kind": "stdout",
+   "text": "typo      None"
+  },
+  {
+   "kind": "stdout",
+   "text": "tuple     None"
+  },
+  {
+   "kind": "stdout",
+   "text": "string    ('u', 's', 'e', 'r', 's')"
+  },
+  {
+   "kind": "stdout",
+   "text": "log       10 12"
+  }
+ ]
+}

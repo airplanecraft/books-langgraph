@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:04+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"What a subgraph keeps between calls: checkpointer None, True or False.\nBook: Chapter 11, section 11.4\nRun: python ch11/subgraph_memory.py\n\"\"\"\n# region: memory\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import START, StateGraph\n\n\nclass Ticket(TypedDict):\n    question: str\n    visits: int\n\n\nclass LookupState(TypedDict):\n    question: str\n    visits: int\n    seen: Annotated[list[str], operator.add]  # ①\n\n\ndef visit(state: LookupState) -> dict:\n    count = len(state[\"seen\"]) + 1  # ②\n    return {\"seen\": [state[\"question\"]], \"visits\": count}\n\n\ndef run(mode: bool | None) -> None:\n    inner = StateGraph(LookupState)\n    inner.add_node(\"visit\", visit).add_edge(START, \"visit\")\n    outer = StateGraph(Ticket)\n    outer.add_node(\"lookup\", inner.compile(checkpointer=mode))  # ③\n    outer.add_edge(START, \"lookup\")\n    graph = outer.compile(checkpointer=InMemorySaver())\n    visits = []\n    calls = ((\"ana\", \"first\"), (\"ana\", \"second\"), (\"ben\", \"third\"))\n    for thread, question in calls:  # ④\n        config = {\"configurable\": {\"thread_id\": thread}}\n        visits.append(graph.invoke({\"question\": question}, config)[\"visits\"])\n    print(mode, \"visits\", visits)\n\n\nfor mode in (None, True, False):\n    run(mode)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "None visits [1, 1, 1]"
+  },
+  {
+   "kind": "stdout",
+   "text": "True visits [1, 2, 1]"
+  },
+  {
+   "kind": "stdout",
+   "text": "False visits [1, 1, 1]"
+  }
+ ]
+}

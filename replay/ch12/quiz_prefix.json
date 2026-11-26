@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:23:01+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: which items a search by prefix finds.\nBook: Chapter 12, section 12.4\nRun: python ch12/quiz_prefix.py\n\"\"\"\n# region: quiz\nfrom langgraph.store.memory import InMemoryStore\n\nstore = InMemoryStore()\nstore.put((\"shop\", \"north\"), \"hours\", {\"open\": 9})\nstore.put((\"shop\", \"south\"), \"hours\", {\"open\": 10})\nstore.put((\"shop\", \"north\", \"desk\"), \"hours\", {\"open\": 8})\nstore.put((\"shop\", \"north\"), \"hours\", {\"open\": 7})\nprint(len(store.search((\"shop\", \"north\"))), \"items\")\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "2 items"
+  }
+ ]
+}

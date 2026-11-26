@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:23:00+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A frozen context: Python refuses a node that tries to change it.\nBook: Chapter 12, section 12.6\nRun: python ch12/context_frozen.py\n\"\"\"\n# region: frozen\nfrom dataclasses import FrozenInstanceError, dataclass\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.runtime import Runtime\n\n\n@dataclass(frozen=True)\nclass Context:\n    user_id: str\n\n\nclass State(TypedDict, total=False):\n    greeting: str\n\n\ndef greet(state: State, runtime: Runtime[Context]) -> dict:\n    try:\n        runtime.context.user_id = \"ben\"  # ①\n    except FrozenInstanceError as error:\n        print(\"refused:\", error)\n    return {\"greeting\": f\"Hello, {runtime.context.user_id}.\"}\n\n\nbuilder = StateGraph(State, context_schema=Context)\nbuilder.add_node(\"greet\", greet)\nbuilder.add_edge(START, \"greet\")\nbuilder.add_edge(\"greet\", END)\ngraph = builder.compile()\nprint(graph.invoke({}, context=Context(user_id=\"ana\")))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "refused: cannot assign to field 'user_id'"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'greeting': 'Hello, ana.'}"
+  }
+ ]
+}

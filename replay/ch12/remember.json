@@ -1,0 +1,58 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:33:19+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A saved preference changes what the real model is asked, on any thread.\nBook: Chapter 12, section 12.5\nRun: python ch12/remember.py   (or OFFLINE=1 python ch12/remember.py)\n\"\"\"\n# region: remember\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, MessagesState, StateGraph\nfrom langgraph.runtime import Runtime\nfrom langgraph.store.memory import InMemoryStore\n\nfrom common import get_model  # the helper from chapter 0\n\nmodel = get_model()\n\n\nclass State(MessagesState):\n    user: str\n    tone: str\n\n\ndef save(state: State, runtime: Runtime) -> dict:  # no model here\n    if \"tone\" in state:\n        where = (\"users\", state[\"user\"])\n        runtime.store.put(where, \"prefs\", {\"tone\": state[\"tone\"]})\n    return {}\n\n\ndef answer(state: State, runtime: Runtime) -> dict:  # the only model call\n    item = runtime.store.get((\"users\", state[\"user\"]), \"prefs\")\n    messages = state[\"messages\"]\n    if item:\n        rule = f\"Answer in this style: {item.value['tone']}.\"\n        messages = [{\"role\": \"system\", \"content\": rule}] + messages\n        print(\"instruction from the store:\", rule)  # ①\n    print(\"model receives\", len(messages), \"messages\")  # ②\n    return {\"messages\": [model.invoke(messages)]}\n# endregion\n\n# region: calls\nbuilder = StateGraph(State)\nbuilder.add_node(\"save\", save)\nbuilder.add_node(\"answer\", answer)\nbuilder.add_edge(START, \"save\")\nbuilder.add_edge(\"save\", \"answer\")\nbuilder.add_edge(\"answer\", END)\ngraph = builder.compile(checkpointer=InMemorySaver(), store=InMemoryStore())\n\nquestion = {\"role\": \"user\", \"content\": \"Where is my order A17?\"}\nruns = [(\"monday\", {\"user\": \"ana\", \"tone\": \"one short, polite sentence\"}),\n        (\"tuesday\", {\"user\": \"ana\"}),\n        (\"wednesday\", {\"user\": \"ben\"})]\nfor thread_id, given in runs:\n    config = {\"configurable\": {\"thread_id\": thread_id}}\n    result = graph.invoke({**given, \"messages\": [question]}, config)\n    kind = type(result[\"messages\"][-1]).__name__\n    print(thread_id, \"last message is an\", kind)  # ①\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I\\u2019m sorry, but I can\\u2019t see order A17\\u2019s status here\\u2014please check your confirmation email or contact support for tracking.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer in style one short polite sentence. Need address where is order A17. We don't have order info. Need say can't see details/check with support? Need be polite. One short sentence. \\\"I\\u2019m sorry, but I don\\u2019t have access to order A17\\u2019s tracking details\\u2014please check your confirmation email or contact support for its status.\\\" That's one sentence maybe. Desired style one short polite sentence. Need not overexplain. Could say: \\\"I\\u2019m sorry, but I can\\u2019t see order A17\\u2019s status here\\u2014please check your confirmation email or contact support for tracking.\\\" One sentence. Good. \"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 169, \"prompt_tokens\": 48, \"total_tokens\": 217, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 138, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 48}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"569ca24b-b871-4390-8bda-1fbeb3470ee6\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b66-64d2-72c5-9d71-be5ac96e9b06-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 48, \"output_tokens\": 169, \"total_tokens\": 217, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 138}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I\\u2019m sorry, but I don\\u2019t have access to order A17\\u2019s status\\u2014please check your account or contact customer support for tracking details.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer style one short polite sentence. Need address order A17. We don't have info. Need say can't see order details? We need answer in one short polite sentence. \\\"I\\u2019m sorry, but I don\\u2019t have access to order A17\\u2019s status\\u2014please check your account or contact customer support.\\\" That's one sentence but maybe semicolon. Polite. Need not overdo.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 118, \"prompt_tokens\": 48, \"total_tokens\": 166, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 85, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 48}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"bf311039-3e6d-4b74-be2b-6d604dc96a6b\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b66-7b46-7414-8da2-4ddab2938582-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 48, \"output_tokens\": 118, \"total_tokens\": 166, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 85}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I don\\u2019t have access to order or shipping systems, so I can\\u2019t look up order **A17** directly.\\n\\nTo find it:\\n1. Check your order confirmation email for a tracking link.\\n2. Track the package with the carrier using the tracking number.\\n3. Contact the seller/support and reference **order A17**\\u2014they can confirm status and location.\\n\\nIf you share the company name or any tracking details you have, I can help you figure out the next step.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer to user. They ask \\\"Where is my order A17?\\\" We need infer likely customer service context? No prior info. Need say can't access order status without details / clarify. Need maybe ask for order number? They provided A17. Need explain can't look up orders here, contact support/link? Since no tools/context. We should be helpful, concise. Ask for company/context or tracking. Maybe say if this is about an order, I don\\u2019t have access to order systems. Provide steps: check confirmation email, track via carrier, contact support with order A17. Need not overdo. final.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 232, \"prompt_tokens\": 37, \"total_tokens\": 269, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 131, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 37}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"7b92d497-0c2f-495c-b2fe-5f15de75807f\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b66-821f-7277-a466-59b0d417be50-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 37, \"output_tokens\": 232, \"total_tokens\": 269, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 131}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "instruction from the store: Answer in this style: one short, polite sentence."
+  },
+  {
+   "kind": "stdout",
+   "text": "model receives 2 messages"
+  },
+  {
+   "kind": "stdout",
+   "text": "monday last message is an AIMessage"
+  },
+  {
+   "kind": "stdout",
+   "text": "instruction from the store: Answer in this style: one short, polite sentence."
+  },
+  {
+   "kind": "stdout",
+   "text": "model receives 2 messages"
+  },
+  {
+   "kind": "stdout",
+   "text": "tuesday last message is an AIMessage"
+  },
+  {
+   "kind": "stdout",
+   "text": "model receives 1 messages"
+  },
+  {
+   "kind": "stdout",
+   "text": "wednesday last message is an AIMessage"
+  }
+ ]
+}

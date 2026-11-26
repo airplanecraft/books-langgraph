@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T01:02:33+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A bad request becomes a tool message and the loop goes on.\nBook: Chapter 4, section 4.8\nRun: python ch04/bad_args.py\n\"\"\"\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n# region: helper\nfrom collections.abc import Callable\n\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\nfrom common import ScriptedModel  # the stand-in model of chapter 0\n\n\ndef build(script: list, tools: list, router: Callable = tools_condition,\n          verbose: bool = False) -> tuple:\n    model = ScriptedModel(script=script).bind_tools(tools)\n\n    def call_model(state: MessagesState) -> dict:\n        if verbose:\n            kinds = [message.type for message in state[\"messages\"]]\n            print(\"model node receives\", len(kinds), kinds)\n        return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", router)  # ①\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile(), model\n# endregion\n\n# region: bad_args\nfrom common import ask_for, say  # the helpers from chapter 0\n\nquestion = {\"role\": \"user\", \"content\": \"Where is my order B42?\"}\nwrong_type = ask_for(\"lookup_order\", {\"order_id\": 42}, \"call_1\")  # ①\nwrong_name = ask_for(\"cancel_order\", {\"order_id\": \"B42\"}, \"call_1\")  # ②\nno_argument = ask_for(\"lookup_order\", {}, \"call_1\")  # ③\nfor request in (wrong_type, wrong_name, no_argument):\n    script = [request, say(\"Sorry, I could not look that up.\")]\n    graph, _ = build(script, [lookup_order])\n    result = graph.invoke({\"messages\": [question]})\n    tool_message = result[\"messages\"][2]\n    print(tool_message.status, \"|\", tool_message.content.replace(\"\\n\", \" \"))\n    print(\"last message:\", result[\"messages\"][-1].content)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "error | Error invoking tool 'lookup_order' with kwargs {'order_id': 42} with error:  order_id: Input should be a valid string  Please fix the error and try again."
+  },
+  {
+   "kind": "stdout",
+   "text": "last message: Sorry, I could not look that up."
+  },
+  {
+   "kind": "stdout",
+   "text": "error | Error: cancel_order is not a valid tool, try one of [lookup_order]."
+  },
+  {
+   "kind": "stdout",
+   "text": "last message: Sorry, I could not look that up."
+  },
+  {
+   "kind": "stdout",
+   "text": "error | Error invoking tool 'lookup_order' with kwargs {} with error:  order_id: Field required  Please fix the error and try again."
+  },
+  {
+   "kind": "stdout",
+   "text": "last message: Sorry, I could not look that up."
+  }
+ ]
+}

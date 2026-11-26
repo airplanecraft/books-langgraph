@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "12-memory-context",
+ "recordedAt": "2026-11-24T02:22:59+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A memory store on its own: put, get and what a miss looks like.\nBook: Chapter 12, section 12.2\nRun: python ch12/store_basics.py\n\"\"\"\n# region: basics\nfrom langgraph.store.memory import InMemoryStore\n\nstore = InMemoryStore()  # ①\nstore.put((\"users\", \"ana\"), \"prefs\", {\"tone\": \"short\"})  # ②\nitem = store.get((\"users\", \"ana\"), \"prefs\")  # ③\nprint(item.value, item.key, item.namespace)\n\nstore.put((\"users\", \"ana\"), \"prefs\", {\"tone\": \"formal\"})  # ④\nprint(store.get((\"users\", \"ana\"), \"prefs\").value)\n\nprint(store.get((\"users\", \"ben\"), \"prefs\"))  # ⑤\nprint(InMemoryStore().get((\"users\", \"ana\"), \"prefs\"))  # ⑥\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'tone': 'short'} prefs ('users', 'ana')"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'tone': 'formal'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "None"
+  },
+  {
+   "kind": "stdout",
+   "text": "None"
+  }
+ ]
+}

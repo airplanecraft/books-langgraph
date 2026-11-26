@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:27+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: a deferred node waits for a branch that does not lead to it.\nBook: Chapter 10, section 10.5\nRun: python ch10/quiz_waits.py\n\"\"\"\nimport operator\nfrom typing import Annotated, Callable, TypedDict\n\nfrom langchain_core.runnables import RunnableConfig\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    log: Annotated[list[str], operator.add]\n\n\ndef make_node(label: str) -> Callable[[State, RunnableConfig], dict]:\n    def node(state: State, config: RunnableConfig) -> dict:\n        return {\"log\": [f\"{label}:{config['metadata']['langgraph_step']}\"]}\n\n    return node\n\n\nbuilder = StateGraph(State)\nfor label in (\"scan\", \"fast\", \"slow_1\", \"slow_2\"):\n    builder.add_node(label, make_node(label))\nbuilder.add_node(\"close\", make_node(\"close\"), defer=True)\nbuilder.add_edge(START, \"scan\")\nbuilder.add_edge(\"scan\", \"fast\")\nbuilder.add_edge(\"scan\", \"slow_1\")\nbuilder.add_edge(\"slow_1\", \"slow_2\")\nbuilder.add_edge(\"slow_2\", END)\nbuilder.add_edge(\"fast\", \"close\")\nbuilder.add_edge(\"close\", END)\nlog = builder.compile().invoke({\"log\": []})[\"log\"]\nprint([entry for entry in log if entry.startswith(\"close\")])\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['close:4']"
+  }
+ ]
+}

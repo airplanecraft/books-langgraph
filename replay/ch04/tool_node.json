@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "04-agent-by-hand",
+ "recordedAt": "2026-11-24T01:02:32+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A tool node on its own: it answers the tool calls of the latest AI message.\nBook: Chapter 4, section 4.2\nRun: python ch04/tool_node.py\n\"\"\"\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n# region: tool_node\nfrom langchain_core.messages import AIMessage\nfrom langgraph.graph import END, START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode\n\ncall = {\"name\": \"lookup_order\", \"args\": {\"order_id\": \"A17\"}, \"id\": \"call_1\"}\nrequest = AIMessage(content=\"\", tool_calls=[call])  # ①\n\nbuilder = StateGraph(MessagesState)\nbuilder.add_node(\"tools\", ToolNode([lookup_order]))  # ②\nbuilder.add_edge(START, \"tools\")\nbuilder.add_edge(\"tools\", END)\ngraph = builder.compile()\n\nquestion = {\"role\": \"user\", \"content\": \"Where is my order A17?\"}\nresult = graph.invoke({\"messages\": [question, request]})\nfor message in result[\"messages\"]:  # ③\n    print(message.type, \"|\", message.content)\nprint(\"answers call:\", result[\"messages\"][-1].tool_call_id)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "human | Where is my order A17?"
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | "
+  },
+  {
+   "kind": "stdout",
+   "text": "tool | shipped on 18 November"
+  },
+  {
+   "kind": "stdout",
+   "text": "answers call: call_1"
+  }
+ ]
+}

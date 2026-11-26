@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "05-persistence",
+ "recordedAt": "2026-11-24T01:26:41+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: a second invoke on the same thread, with a counter that adds.\nBook: Chapter 5, section 5.5\nRun: python ch05/quiz_merge.py\n\"\"\"\n# region: quiz\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    total: Annotated[int, operator.add]\n    label: str\n\n\ndef count(state: State) -> dict:\n    return {\"total\": 1}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"count\", count)\nbuilder.add_edge(START, \"count\")\nbuilder.add_edge(\"count\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\nconfig = {\"configurable\": {\"thread_id\": \"t1\"}}\ngraph.invoke({\"total\": 10, \"label\": \"a\"}, config)\nprint(graph.invoke({\"total\": 5}, config))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'total': 17, 'label': 'a'}"
+  }
+ ]
+}

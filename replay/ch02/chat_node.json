@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "02-state-reducers",
+ "recordedAt": "2026-11-23T15:15:02+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Run a graph on MessagesState whose only node calls the chat model.\nBook: Chapter 2, section 2.4\nRun: python ch02/chat_node.py\n\"\"\"\n# region: chat\nfrom langgraph.graph import END, START, MessagesState, StateGraph\n\nfrom common import get_model  # the helper from chapter 0\n\nmodel = get_model()\n\n\ndef chat(state: MessagesState) -> dict:\n    reply = model.invoke(state[\"messages\"])  # ①\n    return {\"messages\": [reply]}  # ②\n\n\nbuilder = StateGraph(MessagesState)\nbuilder.add_node(\"chat\", chat)\nbuilder.add_edge(START, \"chat\")\nbuilder.add_edge(\"chat\", END)\ngraph = builder.compile()\n\ntext = \"Greet a customer named Ana in one short sentence.\"\nquestion = {\"role\": \"user\", \"content\": text}\nresult = graph.invoke({\"messages\": [question]})\nfor message in result[\"messages\"]:\n    print(message.type, \"|\", message.content)  # ③\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"Hello Ana, welcome!\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer. Need greet customer named Ana in one short sentence. Simple. \\\"Hello Ana, welcome!\\\" or \\\"Hi Ana, thanks for reaching out!\\\" Need short sentence. Ensure name Ana. One sentence. Could be \\\"Hello Ana, welcome!\\\" That's short. final only.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 64, \"prompt_tokens\": 41, \"total_tokens\": 105, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 58, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 41}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"27a9b6d5-8475-4a54-baca-ac64545f5233\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a208f9-814a-73f8-b4c4-54605c8152a1-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 41, \"output_tokens\": 64, \"total_tokens\": 105, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 58}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "human | Greet a customer named Ana in one short sentence."
+  },
+  {
+   "kind": "stdout",
+   "text": "ai | Hello Ana, welcome!"
+  }
+ ]
+}

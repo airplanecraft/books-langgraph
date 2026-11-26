@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "05-persistence",
+ "recordedAt": "2026-11-24T01:46:25+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The state snapshot of the newest checkpoint of a thread, and delete_thread.\nBook: Chapter 5, section 5.4\nRun: python ch05/snapshot.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list, operator.add]\n\n\ndef read(state: State) -> dict:\n    return {\"notes\": [\"read the email\"]}\n\n\ndef draft(state: State) -> dict:\n    return {\"notes\": [\"wrote a reply\"]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"read\", read)\nbuilder.add_node(\"draft\", draft)\nbuilder.add_edge(START, \"read\")\nbuilder.add_edge(\"read\", \"draft\")\nbuilder.add_edge(\"draft\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\n# region: snapshot\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\ngraph.invoke({\"customer\": \"Ana\", \"notes\": []}, config)\nsnapshot = graph.get_state(config)  # ①\nprint(\"values:\", snapshot.values)\nprint(\"next:\", snapshot.next)  # ②\nprint(\"metadata:\", snapshot.metadata)\nprint(\"config keys:\", sorted(snapshot.config[\"configurable\"]))  # ③\nunused = graph.get_state({\"configurable\": {\"thread_id\": \"nobody\"}})  # ④\nprint(\"unused thread:\", unused.values, unused.metadata)\ngraph.checkpointer.delete_thread(\"ana\")  # ⑤\nprint(\"after delete:\", graph.get_state(config).values)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "values: {'customer': 'Ana', 'notes': ['read the email', 'wrote a reply']}"
+  },
+  {
+   "kind": "stdout",
+   "text": "next: ()"
+  },
+  {
+   "kind": "stdout",
+   "text": "metadata: {'source': 'loop', 'step': 2, 'parents': {}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "config keys: ['checkpoint_id', 'checkpoint_ns', 'thread_id']"
+  },
+  {
+   "kind": "stdout",
+   "text": "unused thread: {} None"
+  },
+  {
+   "kind": "stdout",
+   "text": "after delete: {}"
+  }
+ ]
+}

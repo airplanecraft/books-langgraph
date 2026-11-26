@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "lesson": "03-branching-loops",
+ "recordedAt": "2026-11-24T00:16:27+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A wrong node name from a routing function or a Command.\nBook: Chapter 3, section 3.6\nRun: python ch03/pitfall_name.py\n\"\"\"\nfrom typing import Any, Callable, Literal, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command\n\n\nclass State(TypedDict):\n    customer: str\n    category: str\n    reply: str\n\n\ndef billing_reply(state: State) -> dict:\n    return {\"reply\": f\"Hi {state['customer']}, we are checking the charge.\"}\n\n\ndef general_reply(state: State) -> dict:\n    return {\"reply\": f\"Hi {state['customer']}, thanks for your email.\"}\n\n\n# region: typo\ndef classify(state: State) -> dict:\n    return {\"category\": \"billing\"}\n\n\ndef route_plain(state: State):\n    return \"billing_replay\"  # ①\n\n\ndef route_literal(state: State) -> Literal[\"billing_reply\", \"general_reply\"]:\n    return \"billing_replay\"  # ②\n\n\ndef classify_command(\n    state: State,\n) -> Command[Literal[\"billing_reply\", \"general_reply\"]]:\n    return Command(goto=\"billing_replay\")  # ③\n\n\ndef build(first: Callable, route: Callable | None = None) -> Any:\n    builder = StateGraph(State)\n    builder.add_node(\"first\", first)\n    builder.add_node(\"billing_reply\", billing_reply)\n    builder.add_node(\"general_reply\", general_reply)\n    builder.add_edge(START, \"first\")\n    if route:\n        builder.add_conditional_edges(\"first\", route)\n    builder.add_edge(\"billing_reply\", END)\n    builder.add_edge(\"general_reply\", END)\n    return builder.compile()\n\n\nticket = {\"customer\": \"Ana\", \"category\": \"unknown\", \"reply\": \"\"}\ncases = {\"plain\": build(classify, route_plain),\n         \"literal\": build(classify, route_literal),\n         \"command\": build(classify_command)}\nfor name, graph in cases.items():\n    try:\n        print(name, \"| reply:\", repr(graph.invoke(ticket)[\"reply\"]))  # ④\n    except KeyError as error:\n        print(name, \"| KeyError:\", error)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "plain | reply: ''"
+  },
+  {
+   "kind": "stdout",
+   "text": "literal | KeyError: 'billing_replay'"
+  },
+  {
+   "kind": "stdout",
+   "text": "command | reply: ''"
+  }
+ ]
+}

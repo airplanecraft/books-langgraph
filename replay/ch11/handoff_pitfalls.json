@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:47:09+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Handoff mistakes: no destinations, an extra edge, a Literal type, a lone subgraph.\nBook: Chapter 11, section 11.9\nRun: python ch11/handoff_pitfalls.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command\n\n\nclass Ticket(TypedDict):\n    log: Annotated[list[str], operator.add]\n\n\ndef hand_over(state: Ticket) -> Command:  # ①\n    return Command(graph=Command.PARENT, goto=\"billing\",\n                   update={\"log\": [\"support: pass to billing\"]})\n\n\ndef billing(state: Ticket) -> dict:\n    return {\"log\": [\"billing: refund noted\"]}\n\n\ninner = StateGraph(Ticket)\ninner.add_node(\"hand_over\", hand_over)\ninner.add_edge(START, \"hand_over\")\nsupport = inner.compile()\n\nouter = StateGraph(Ticket)\nouter.add_node(\"support\", support, destinations=(\"billing\",))  # ②\nouter.add_node(\"billing\", billing)\nouter.add_edge(START, \"support\")\nouter.add_edge(\"billing\", END)\ngraph = outer.compile()\n\nprint(graph.invoke({\"log\": [\"start\"]})[\"log\"])  # ③\nedges = [(edge.source, edge.target) for edge in graph.get_graph().edges]\nprint(sorted(edges))  # ④\n\n\n# region: pitfalls\nfrom typing import Literal\nfrom langgraph.errors import ParentCommand\n\n\ndef build(destinations: tuple | None, extra_edge: bool) -> object:\n    outer = StateGraph(Ticket)\n    outer.add_node(\"support\", support, destinations=destinations)  # ①\n    outer.add_node(\"billing\", billing)\n    outer.add_node(\"report\", lambda state: {\"log\": [\"report: ran\"]})\n    outer.add_edge(START, \"support\")\n    outer.add_edge(\"billing\", END)\n    if extra_edge:\n        outer.add_edge(\"support\", \"report\")  # ②\n    return outer.compile()\n\nfor destinations, extra_edge in ((None, False), ((\"billing\",), True)):\n    graph = build(destinations, extra_edge)\n    edges = [(edge.source, edge.target) for edge in graph.get_graph().edges]\n    print(graph.invoke({\"log\": []})[\"log\"], sorted(edges))  # ③\n\ndef typed(state: Ticket) -> Command[Literal[\"billing\"]]:  # ④\n    return Command(graph=Command.PARENT, goto=\"billing\")\n\nbad = StateGraph(Ticket)\nbad.add_node(\"hand_over\", typed)\nbad.add_edge(START, \"hand_over\")\ntry:\n    bad.compile()\nexcept ValueError as error:\n    print(\"compile:\", error)\ntry:\n    support.invoke({\"log\": []})  # ⑤\nexcept ParentCommand as error:\n    print(\"alone:\", type(error).__name__)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['start', 'support: pass to billing', 'billing: refund noted']"
+  },
+  {
+   "kind": "stdout",
+   "text": "[('__start__', 'support'), ('billing', '__end__'), ('support', 'billing')]"
+  },
+  {
+   "kind": "stdout",
+   "text": "['support: pass to billing', 'billing: refund noted'] [('__start__', 'support'), ('support', '__end__')]"
+  },
+  {
+   "kind": "stdout",
+   "text": "['support: pass to billing', 'billing: refund noted', 'report: ran'] [('__start__', 'support'), ('billing', '__end__'), ('report', '__end__'), ('support', 'billing'), ('support', 'report')]"
+  },
+  {
+   "kind": "stdout",
+   "text": "compile: Found edge ending at unknown node `billing`"
+  },
+  {
+   "kind": "stdout",
+   "text": "alone: ParentCommand"
+  }
+ ]
+}

@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "01-your-first-graph",
+ "recordedAt": "2026-11-23T23:02:49+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A node that computes a value but forgets to return it.\nBook: Chapter 1, section 1.7\nRun: python ch01/no_return.py\n\"\"\"\n# region: forgot\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    category: str\n\n\ndef classify(state: State) -> dict:\n    category = \"billing\"\n    print(\"classify worked out:\", category)  # ①\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_edge(\"classify\", END)\nprint(builder.compile().invoke({\"category\": \"unknown\"}))  # ②\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "classify worked out: billing"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'category': 'unknown'}"
+  }
+ ]
+}

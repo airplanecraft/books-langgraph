@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:07+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: a subgraph compiled with checkpointer=True, two threads.\nBook: Chapter 11, section 11.4\nRun: python ch11/quiz_memory.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import START, StateGraph\n\n\nclass Ticket(TypedDict):\n    visits: int\n\n\nclass LookupState(TypedDict):\n    visits: int\n    seen: Annotated[list[str], operator.add]\n\n\ndef visit(state: LookupState) -> dict:\n    earlier = state.get(\"seen\", [])\n    return {\"seen\": [\"visit\"], \"visits\": len(earlier) + 1}\n\n\ninner = StateGraph(LookupState)\ninner.add_node(\"visit\", visit)\ninner.add_edge(START, \"visit\")\nouter = StateGraph(Ticket)\nouter.add_node(\"lookup\", inner.compile(checkpointer=True))\nouter.add_edge(START, \"lookup\")\ngraph = outer.compile(checkpointer=InMemorySaver())\n\ncounts = []\nfor thread in (\"x\", \"x\", \"x\", \"y\"):\n    config = {\"configurable\": {\"thread_id\": thread}}\n    counts.append(graph.invoke({\"visits\": 0}, config)[\"visits\"])\nprint(counts)\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "[1, 2, 3, 1]"
+  }
+ ]
+}

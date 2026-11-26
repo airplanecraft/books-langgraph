@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "05-persistence",
+ "recordedAt": "2026-11-24T01:26:39+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Two mistakes with the thread id: none at all, and one without the key thread_id.\nBook: Chapter 5, section 5.7\nRun: python ch05/no_thread.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list, operator.add]\n\n\n# region: no_thread\ndef read(state: State) -> dict:\n    return {\"notes\": [\"read the email\"]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"read\", read)\nbuilder.add_edge(START, \"read\")\nbuilder.add_edge(\"read\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\nticket = {\"customer\": \"Ana\", \"notes\": []}\n\ntry:\n    graph.invoke(ticket)  # ①\nexcept ValueError as error:\n    print(\"no config:\", error)\ntry:\n    graph.invoke(ticket, {\"configurable\": {\"user\": \"ana\"}})  # ②\nexcept KeyError as error:\n    print(\"no thread_id:\", repr(error))\n# endregion\n\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "no config: Checkpointer requires one or more of the following 'configurable' keys: thread_id, checkpoint_ns, checkpoint_id"
+  },
+  {
+   "kind": "stdout",
+   "text": "no thread_id: KeyError('thread_id')"
+  }
+ ]
+}

@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "13-project",
+ "recordedAt": "2026-11-24T04:42:09+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Workflow step 1: classify, then an agent loop that looks up the order.\nBook: Chapter 13, section 13.2\nRun: python ch13/step1_loop.py\"\"\"\n# region: state\nfrom typing import Literal\n\nfrom langchain_core.tools import tool\nfrom langgraph.graph import END, START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode\nfrom langgraph.types import Command\n\nORDERS = {\"A17\": \"shipped on 18 November\", \"B42\": \"delayed\"}\n\n\nclass State(MessagesState):  # ①\n    ticket_id: str\n    status: str\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")  # ②\n# endregion\n\n\n# region: nodes\nfrom common import ScriptedModel, ask_for, say  # the stand-in of chapter 0\n\nscript = []\nfor _ in range(4):  # new objects each time: see the text\n    script += [ask_for(\"lookup_order\", {\"order_id\": \"A17\"}),\n               say(\"Hi, A17 has shipped.\")]\nmodel = ScriptedModel(script=script)  # ①\nlimit = {\"recursion_limit\": 10}  # ②\n\n\ndef classify(state: State) -> Command[Literal[\"to_person\", \"agent\"]]:\n    refund = \"refund\" in state[\"messages\"][-1].content.lower()  # ③\n    return Command(goto=\"to_person\" if refund else \"agent\")\n\n\ndef agent(state: State) -> dict:\n    reply = model.bind_tools([lookup_order]).invoke(state[\"messages\"])  # ④\n    return {\"messages\": [reply]}\n\n\ndef to_person(state: State) -> dict:\n    return {\"status\": \"handed to a person\"}\n# endregion\n\n\n# region: build\ndef route(state: State) -> Literal[\"tools\", \"__end__\"]:\n    return \"tools\" if state[\"messages\"][-1].tool_calls else END  # ①\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_node(\"agent\", agent)\nbuilder.add_node(\"tools\", ToolNode([lookup_order]))\nbuilder.add_node(\"to_person\", to_person)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_conditional_edges(\"agent\", route)  # ②\nbuilder.add_edge(\"tools\", \"agent\")\nbuilder.add_edge(\"to_person\", END)\ngraph = builder.compile()\n\nemails = [\"Where is my order A17?\", \"I want a refund for order B42.\"]\nfor text in emails:\n    ticket = {\"messages\": [{\"role\": \"user\", \"content\": text}]}\n    result = graph.invoke(ticket, limit)  # ③\n    kinds = [type(m).__name__ for m in result[\"messages\"]]\n    print(kinds, \"|\", result.get(\"status\", \"-\"))\n    print(\"  last:\", result[\"messages\"][-1].content)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "['HumanMessage', 'AIMessage', 'ToolMessage', 'AIMessage'] | -"
+  },
+  {
+   "kind": "stdout",
+   "text": "  last: Hi, A17 has shipped."
+  },
+  {
+   "kind": "stdout",
+   "text": "['HumanMessage'] | handed to a person"
+  },
+  {
+   "kind": "stdout",
+   "text": "  last: I want a refund for order B42."
+  }
+ ]
+}

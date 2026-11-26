@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "lesson": "01-your-first-graph",
+ "recordedAt": "2026-11-23T23:02:48+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Write down the keys of a ticket with a TypedDict class and fill them in.\nBook: Chapter 1, section 1.1\nRun: python ch01/state_dict.py\n\"\"\"\n# region: state\nfrom typing import TypedDict\n\n\nclass State(TypedDict):  # ①\n    customer: str\n    body: str\n    category: str\n    reply: str\n\n\nticket: State = {  # ②\n    \"customer\": \"Ana\",\n    \"body\": \"I was charged twice for May.\",\n    \"category\": \"unknown\",\n    \"reply\": \"\",\n}\nprint(type(ticket))  # ③\nfor key, value in ticket.items():\n    print(key, \"=\", repr(value))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "<class 'dict'>"
+  },
+  {
+   "kind": "stdout",
+   "text": "customer = 'Ana'"
+  },
+  {
+   "kind": "stdout",
+   "text": "body = 'I was charged twice for May.'"
+  },
+  {
+   "kind": "stdout",
+   "text": "category = 'unknown'"
+  },
+  {
+   "kind": "stdout",
+   "text": "reply = ''"
+  }
+ ]
+}

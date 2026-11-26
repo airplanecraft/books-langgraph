@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "lesson": "08-time-travel",
+ "recordedAt": "2026-11-24T03:15:56+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Checkpoint replay over an interrupt: the node asks again, the old answer is not reused.\nBook: Chapter 8, section 8.4\nRun: python ch08/replay_interrupt.py\n\"\"\"\n# region: pause\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Command, interrupt\n\n\nclass State(TypedDict):\n    status: str\n\n\ndef review(state: State) -> dict:\n    print(\"review starts\")\n    answer = interrupt(\"Send it?\")  # ①\n    return {\"status\": answer}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"review\", review)\nbuilder.add_edge(START, \"review\")\nbuilder.add_edge(\"review\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\ngraph.invoke({\"status\": \"\"}, config)  # ②\nprint(graph.invoke(Command(resume=\"approved\"), config)[\"status\"])  # ③\n# endregion\n\n# region: again\nhistory = list(graph.get_state_history(config))\nbefore_review = next(snapshot for snapshot in history\n                     if snapshot.next == (\"review\",))\nagain = graph.invoke(None, before_review.config)  # ①\nprint(\"asked again:\", \"__interrupt__\" in again, graph.get_state(config).next)\nprint(graph.invoke(Command(resume=\"edited\"), config)[\"status\"])  # ②\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "review starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "review starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "approved"
+  },
+  {
+   "kind": "stdout",
+   "text": "review starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "asked again: True ('review',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "review starts"
+  },
+  {
+   "kind": "stdout",
+   "text": "edited"
+  }
+ ]
+}

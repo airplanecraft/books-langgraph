@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "lesson": "07-asking-before-acting",
+ "recordedAt": "2026-11-24T02:54:53+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"One reply asks for two tools and one of them asks a person: both start again.\nBook: Chapter 7, section 7.7\nRun: python ch07/two_tools.py\n\"\"\"\nfrom typing import Any\n\nfrom langchain_core.tools import tool\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\nfrom langgraph.types import interrupt\n\nfrom common import ScriptedModel  # the stand-in model of chapter 0\n\n\ndef build(script: list, tools: list, checkpointer: Any = None) -> Any:\n    model = ScriptedModel(script=script).bind_tools(tools)\n\n    def call_model(state: MessagesState) -> dict:\n        return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode(tools))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", tools_condition)\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile(checkpointer=checkpointer)\n\n\n@tool\ndef refund_order(order_id: str) -> str:\n    \"\"\"Refund the order with this ID, such as A17.\"\"\"\n    print(\"refund_order starts for\", order_id)\n    answer = interrupt(f\"Refund order {order_id}?\")\n    if answer != \"yes\":\n        return \"a person refused the refund\"\n    print(\"REFUND SENT for\", order_id)\n    return f\"refund sent for {order_id}\"\n\n\n# region: two\nfrom langchain_core.messages import AIMessage\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.types import Command\n\nfrom common import say  # the helper of chapter 0\n\nstarted: list = []\n\n\n@tool\ndef note_order(order_id: str) -> str:\n    \"\"\"Write a note on the order with this ID, such as A17.\"\"\"\n    started.append(\"note_order\")  # ①\n    return f\"note written on {order_id}\"\n\n\ncalls = [{\"name\": \"note_order\", \"args\": {\"order_id\": \"A17\"}, \"id\": \"c1\"},\n         {\"name\": \"refund_order\", \"args\": {\"order_id\": \"A17\"}, \"id\": \"c2\"}]\nscript = [AIMessage(content=\"\", tool_calls=calls), say(\"Done.\")]  # ②\ngraph = build(script, [note_order, refund_order], InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\nquestion = {\"role\": \"user\", \"content\": \"Note and refund order A17.\"}\ngraph.invoke({\"messages\": [question]}, config)\ngraph.invoke(Command(resume=\"yes\"), config)  # ③\nprint(\"note_order started\", len(started), \"times\")  # ④\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "refund_order starts for A17"
+  },
+  {
+   "kind": "stdout",
+   "text": "refund_order starts for A17"
+  },
+  {
+   "kind": "stdout",
+   "text": "REFUND SENT for A17"
+  },
+  {
+   "kind": "stdout",
+   "text": "note_order started 2 times"
+  }
+ ]
+}

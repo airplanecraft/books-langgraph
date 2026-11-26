@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "05-persistence",
+ "recordedAt": "2026-11-24T01:46:26+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"An InMemorySaver lasts at most as long as its program: a second program starts empty.\nBook: Chapter 5, section 5.6\nRun: python ch05/lost_on_exit.py\n\"\"\"\n# region: exit\nimport subprocess\nimport sys\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n\n\ndef read(state: State) -> dict:\n    return {}\n\n\ndef run_once() -> None:\n    builder = StateGraph(State)\n    builder.add_node(\"read\", read)\n    builder.add_edge(START, \"read\")\n    builder.add_edge(\"read\", END)\n    graph = builder.compile(checkpointer=InMemorySaver())  # ①\n    config = {\"configurable\": {\"thread_id\": \"ana\"}}\n    before = len(list(graph.get_state_history(config)))\n    graph.invoke({\"customer\": \"Ana\"}, config)\n    after = len(list(graph.get_state_history(config)))\n    print(\"checkpoints before:\", before, \"after:\", after)\n\n\nif sys.argv[1:] == [\"child\"]:  # ②\n    run_once()\nelse:\n    for number in (1, 2):\n        command = [sys.executable, __file__, \"child\"]\n        done = subprocess.run(command, capture_output=True, text=True)\n        print(\"program\", number, \"-\", done.stdout.strip())  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "program 1 - checkpoints before: 0 after: 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "program 2 - checkpoints before: 0 after: 3"
+  }
+ ]
+}

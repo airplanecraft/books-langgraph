@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "01-your-first-graph",
+ "recordedAt": "2026-11-23T23:22:04+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: nodes are added in one order and connected in another.\nBook: Chapter 1, section 1.3\nRun: python ch01/quiz_order.py\n\"\"\"\n# region: order\nfrom collections.abc import Callable\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    log: str\n\n\ndef make_node(name: str) -> Callable[[State], dict]:\n    def node(state: State) -> dict:\n        return {\"log\": state[\"log\"] + name + \",\"}\n\n    return node\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"second\", make_node(\"second\"))\nbuilder.add_node(\"first\", make_node(\"first\"))\nbuilder.add_edge(START, \"first\")\nbuilder.add_edge(\"first\", \"second\")\nbuilder.add_edge(\"second\", END)\nprint(builder.compile().invoke({\"log\": \"\"}))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'log': 'first,second,'}"
+  }
+ ]
+}

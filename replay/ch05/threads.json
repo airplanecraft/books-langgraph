@@ -1,0 +1,50 @@
+{
+ "version": 1,
+ "lesson": "05-persistence",
+ "recordedAt": "2026-11-24T01:46:25+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"One graph, two threads: the same thread remembers, another thread does not.\nBook: Chapter 5, section 5.2\nRun: python ch05/threads.py   (or OFFLINE=1 python ch05/threads.py)\n\"\"\"\n# region: threads\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, MessagesState, StateGraph\n\nfrom common import get_model  # the helper from chapter 0\n\nmodel = get_model()\n\n\ndef chat(state: MessagesState) -> dict:\n    print(\"messages sent to the model:\", len(state[\"messages\"]))  # ①\n    return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n\nbuilder = StateGraph(MessagesState)\nbuilder.add_node(\"chat\", chat)\nbuilder.add_edge(START, \"chat\")\nbuilder.add_edge(\"chat\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())  # ②\n\n\ndef ask(thread_id: str, text: str) -> None:\n    config = {\"configurable\": {\"thread_id\": thread_id}}  # ③\n    message = {\"role\": \"user\", \"content\": text}\n    result = graph.invoke({\"messages\": [message]}, config)  # ④\n    size = len(result[\"messages\"])\n    print(thread_id, \"final state holds\", size, \"messages\")  # ⑤\n# endregion\n\n# region: calls\nask(\"ana\", \"Hi, my name is Ana.\")\nask(\"ana\", \"What is my name?\")\nask(\"ben\", \"What is my name?\")\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"Hi Ana! Nice to meet you. How can I help you today?\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer to user greeting. Need be friendly. \\\"Hi Ana! Nice to meet you. How can I help you today?\\\" Keep concise. No need mention AI? Just respond.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 54, \"prompt_tokens\": 37, \"total_tokens\": 91, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 38, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 37}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"68d3e54d-f7c3-47c4-8d5a-fe9263182f71\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b3b-8154-7282-a411-856e273f97b4-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 37, \"output_tokens\": 54, \"total_tokens\": 91, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 38}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"Your name is Ana.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer. Need be careful: user asks what is my name? They stated Ana. Answer Ana. Simple.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 30, \"prompt_tokens\": 61, \"total_tokens\": 91, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 24, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 61}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"25f79223-d006-4ba3-92d6-3176ac8321f5\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b3b-8fe1-722d-92fb-28d21e312d66-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 61, \"output_tokens\": 30, \"total_tokens\": 91, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 24}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I don\\u2019t know your name yet\\u2014you haven\\u2019t told me. What would you like me to call you?\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"We need answer. Need ask user name not provided. Need be concise.\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 41, \"prompt_tokens\": 35, \"total_tokens\": 76, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 15, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 0, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 0, \"prompt_cache_miss_tokens\": 35}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"d1fb5f89-9c01-4eb2-99e0-0b6b84c111ee\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20b3b-93db-76c7-b4e7-b2c620744f4b-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 35, \"output_tokens\": 41, \"total_tokens\": 76, \"input_token_details\": {\"cache_read\": 0}, \"output_token_details\": {\"reasoning\": 15}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "messages sent to the model: 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "ana final state holds 2 messages"
+  },
+  {
+   "kind": "stdout",
+   "text": "messages sent to the model: 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "ana final state holds 4 messages"
+  },
+  {
+   "kind": "stdout",
+   "text": "messages sent to the model: 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "ben final state holds 2 messages"
+  }
+ ]
+}

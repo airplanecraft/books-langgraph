@@ -1,0 +1,46 @@
+{
+ "version": 1,
+ "lesson": "00-foundations",
+ "recordedAt": "2026-11-23T23:10:01+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"One round by hand: the model asks for a tool, your program runs it, the model answers.\nBook: Chapter 0, section 0.4\nRun: python ch00/one_round.py   (or OFFLINE=1 python ch00/one_round.py)\n\"\"\"\n# region: round\nfrom langchain_core.messages import ToolMessage\nfrom langchain_core.tools import tool\n\nfrom common import get_model\n\nORDERS = {\"A17\": \"shipped on 18 November\", \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n\nmodel = get_model().bind_tools([lookup_order])\nmessages = [{\"role\": \"user\", \"content\": \"Where is my order B42?\"}]\nfirst_reply = model.invoke(messages)  # ①\ncall = first_reply.tool_calls[0]  # ②\nprint(\"asked for:\", call[\"name\"], call[\"args\"])\nresult = lookup_order.invoke(call[\"args\"])  # ③\nprint(\"tool returned:\", result)\ntool_message = ToolMessage(content=result, tool_call_id=call[\"id\"])  # ④\nmessages = messages + [first_reply, tool_message]  # ⑤\nanswer = model.invoke(messages)  # ⑥\nprint(\"messages sent in call 2:\", len(messages))\nprint(\"answer:\", answer.content)\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I'll look that up for you.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 48, \"prompt_tokens\": 308, \"total_tokens\": 356, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 0, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 128, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 128, \"prompt_cache_miss_tokens\": 180}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"7aa3f010-f720-4e1e-8254-a43b79414d2b\", \"finish_reason\": \"tool_calls\", \"logprobs\": null, \"normalized_finish_reason\": \"tool_call\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20aac-5c15-723b-8d18-0173568984f8-0\", \"tool_calls\": [{\"name\": \"lookup_order\", \"args\": {\"order_id\": \"B42\"}, \"id\": \"call_00_ET_mbf8GmO8z4MCYtlf1Vt86445\", \"type\": \"tool_call\"}], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 308, \"output_tokens\": 48, \"total_tokens\": 356, \"input_token_details\": {\"cache_read\": 128}, \"output_token_details\": {\"reasoning\": 0}}}}"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"Your order **B42** is currently **delayed \\u2014 it's waiting for stock**. The items aren't available to ship yet, so it hasn't gone out.\\n\\nIf you'd like, I can help you check on alternatives like canceling the order, swapping for an in-stock item, or setting up a notification for when it ships. Just let me know.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 76, \"prompt_tokens\": 374, \"total_tokens\": 450, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 0, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 128, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 128, \"prompt_cache_miss_tokens\": 246}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"6b92dcad-e260-461d-82ee-9edb5593a2e9\", \"finish_reason\": \"stop\", \"logprobs\": null, \"normalized_finish_reason\": \"stop\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20aac-64fd-7630-89d3-3df3f868dded-0\", \"tool_calls\": [], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 374, \"output_tokens\": 76, \"total_tokens\": 450, \"input_token_details\": {\"cache_read\": 128}, \"output_token_details\": {\"reasoning\": 0}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "asked for: lookup_order {'order_id': 'B42'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "tool returned: delayed: waiting for stock"
+  },
+  {
+   "kind": "stdout",
+   "text": "messages sent in call 2: 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "answer: Your order **B42** is currently **delayed — it's waiting for stock**. The items aren't available to ship yet, so it hasn't gone out."
+  },
+  {
+   "kind": "stdout",
+   "text": ""
+  },
+  {
+   "kind": "stdout",
+   "text": "If you'd like, I can help you check on alternatives like canceling the order, swapping for an in-stock item, or setting up a notification for when it ships. Just let me know."
+  }
+ ]
+}

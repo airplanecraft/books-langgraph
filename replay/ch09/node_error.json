@@ -1,0 +1,54 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:48:16+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"What a failed run leaves in the checkpointer: values, next, the task error.\nBook: Chapter 9, section 9.2\nRun: python ch09/node_error.py\n\"\"\"\n# region: nodes\nimport operator\nfrom typing import Annotated, TypedDict\n\nmail_server = {\"up\": False}  # ① a switch we can turn on later\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list, operator.add]\n\n\ndef read(state: State) -> dict:\n    print(\"read runs\")\n    return {\"notes\": [\"read the email\"]}\n\n\ndef send(state: State) -> dict:\n    print(\"send runs\")\n    if not mail_server[\"up\"]:\n        raise ConnectionError(\"mail server unreachable\")  # ②\n    return {\"notes\": [\"sent the reply\"]}\n\n\ndef close(state: State) -> dict:\n    print(\"close runs\")\n    return {\"notes\": [\"closed the ticket\"]}\n# endregion\n\n\nfrom langgraph.graph import END, START, StateGraph\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"read\", read)\nbuilder.add_node(\"send\", send)\nbuilder.add_node(\"close\", close)\nbuilder.add_edge(START, \"read\")\nbuilder.add_edge(\"read\", \"send\")\nbuilder.add_edge(\"send\", \"close\")\nbuilder.add_edge(\"close\", END)\n\n\n# region: saved\nfrom langgraph.checkpoint.memory import InMemorySaver\n\ngraph = builder.compile(checkpointer=InMemorySaver())  # ①\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}\ntry:\n    graph.invoke({\"customer\": \"Ana\", \"notes\": []}, config)\nexcept ConnectionError as error:\n    print(\"invoke raised:\", error)\nsnapshot = graph.get_state(config)  # ②\nprint(\"values:\", snapshot.values)\nprint(\"next:\", snapshot.next)\nfor task in snapshot.tasks:  # ③\n    print(\"task:\", task.name, \"| error:\", task.error)\n    print(\"type of the error:\", type(task.error).__name__)\nfor saved in reversed(list(graph.get_state_history(config))):  # ④\n    print(\"copy at step\", saved.metadata[\"step\"], \"next:\", saved.next)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "read runs"
+  },
+  {
+   "kind": "stdout",
+   "text": "send runs"
+  },
+  {
+   "kind": "stdout",
+   "text": "invoke raised: mail server unreachable"
+  },
+  {
+   "kind": "stdout",
+   "text": "values: {'customer': 'Ana', 'notes': ['read the email']}"
+  },
+  {
+   "kind": "stdout",
+   "text": "next: ('send',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "task: send | error: ConnectionError('mail server unreachable')"
+  },
+  {
+   "kind": "stdout",
+   "text": "type of the error: str"
+  },
+  {
+   "kind": "stdout",
+   "text": "copy at step -1 next: ('__start__',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "copy at step 0 next: ('read',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "copy at step 1 next: ('send',)"
+  }
+ ]
+}

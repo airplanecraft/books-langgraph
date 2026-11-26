@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "02-state-reducers",
+ "recordedAt": "2026-11-23T15:14:57+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: an integer key with operator.add, an input, and two updates.\nBook: Chapter 2, section 2.3\nRun: python ch02/quiz_total.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\n# region: total\nclass State(TypedDict):\n    total: Annotated[int, operator.add]\n\n\ndef first(state: State) -> dict:\n    return {\"total\": 5}\n\n\ndef second(state: State) -> dict:\n    return {\"total\": -2}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"first\", first)\nbuilder.add_node(\"second\", second)\nbuilder.add_edge(START, \"first\")\nbuilder.add_edge(\"first\", \"second\")\nbuilder.add_edge(\"second\", END)\nprint(builder.compile().invoke({\"total\": 10}))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'total': 13}"
+  }
+ ]
+}

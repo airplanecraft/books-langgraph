@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:26+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: Send objects over words of different lengths.\nBook: Chapter 10, section 10.6\nRun: python ch10/quiz_send.py\n\"\"\"\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.types import Send\n\n\nclass State(TypedDict):\n    words: list[str]\n    lengths: Annotated[list[int], operator.add]\n\n\ndef fan_out(state: State) -> list[Send]:\n    return [Send(\"measure\", {\"word\": word}) for word in state[\"words\"]]\n\n\ndef measure(item: dict) -> dict:\n    return {\"lengths\": [len(item[\"word\"])]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"measure\", measure)\nbuilder.add_conditional_edges(START, fan_out, [\"measure\"])\nbuilder.add_edge(\"measure\", END)\nresult = builder.compile().invoke({\"words\": [\"ccc\", \"a\", \"bb\"], \"lengths\": []})\nprint(sorted(result[\"lengths\"]), sum(result[\"lengths\"]))\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "[1, 2, 3] 6"
+  }
+ ]
+}

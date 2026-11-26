@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:22:09+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: copies left by a failed run under durability=\"exit\".\nBook: Chapter 9, section 9.6\nRun: python ch09/quiz_copies.py\n\"\"\"\n# region: quiz\nfrom typing import TypedDict\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    order: str\n\n\ndef pack(state: State) -> dict:\n    return {}\n\n\ndef ship(state: State) -> dict:\n    raise ConnectionError(\"carrier unreachable\")\n\n\nbuilder = StateGraph(State)\nfor name in (\"check\", \"pick\", \"pack\"):\n    builder.add_node(name, pack)\nbuilder.add_node(\"ship\", ship)\nbuilder.add_edge(START, \"check\")\nbuilder.add_edge(\"check\", \"pick\")\nbuilder.add_edge(\"pick\", \"pack\")\nbuilder.add_edge(\"pack\", \"ship\")\nbuilder.add_edge(\"ship\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\nconfig = {\"configurable\": {\"thread_id\": \"o1\"}}\ntry:\n    graph.invoke({\"order\": \"A17\"}, config, durability=\"exit\")\nexcept ConnectionError:\n    pass\ncopies = len(list(graph.get_state_history(config)))\nprint(copies, graph.get_state(config).next)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "1 ('ship',)"
+  }
+ ]
+}

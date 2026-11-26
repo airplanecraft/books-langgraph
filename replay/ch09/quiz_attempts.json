@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:22:08+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: how often a node runs under a retry policy with max_attempts=4.\nBook: Chapter 9, section 9.3\nRun: python ch09/quiz_attempts.py\n\"\"\"\n# region: quiz\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langgraph.graph import START, StateGraph\nfrom langgraph.types import RetryPolicy\n\n\nclass State(TypedDict):\n    results: Annotated[list, operator.add]\n\n\ncalls = []\n\n\ndef lookup(state: State) -> dict:\n    calls.append(\"run\")\n    if len(calls) <= 3:\n        raise ConnectionError(\"database unreachable\")\n    return {\"results\": [\"found it\"]}\n\n\npolicy = RetryPolicy(max_attempts=4, initial_interval=0.01, jitter=False)\nbuilder = StateGraph(State)\nbuilder.add_node(\"lookup\", lookup, retry_policy=policy)\nbuilder.add_edge(START, \"lookup\")\nresult = builder.compile().invoke({\"results\": []})\nprint(len(calls), result[\"results\"])\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "4 ['found it']"
+  }
+ ]
+}

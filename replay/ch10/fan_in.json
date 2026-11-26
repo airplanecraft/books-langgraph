@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:24+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Fan-in: separate edges, a list edge and defer=True compared on branches of unequal length.\nBook: Chapter 10, section 10.4\nRun: python ch10/fan_in.py\n\"\"\"\nimport operator\nfrom typing import Annotated, Callable, TypedDict\n\nfrom langchain_core.runnables import RunnableConfig\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.graph.state import CompiledStateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list[str], operator.add]\n\n\ndef make_step(label: str) -> Callable[[State, RunnableConfig], dict]:\n    def step(state: State, config: RunnableConfig) -> dict:\n        number = config[\"metadata\"][\"langgraph_step\"]\n        seen = len(state[\"notes\"])\n        note = f\"{label}: super-step {number}, notes seen {seen}\"\n        return {\"notes\": [note]}\n\n    return step\n\n\n# region: join\ndef build(kind: str) -> CompiledStateGraph:\n    builder = StateGraph(State)\n    for label in (\"read\", \"order\", \"policy\", \"shipping\"):\n        builder.add_node(label, make_step(label))\n    deferred = kind == \"defer\"\n    builder.add_node(\"draft\", make_step(\"draft\"), defer=deferred)  # ①\n    builder.add_edge(START, \"read\")\n    builder.add_edge(\"read\", \"order\")\n    builder.add_edge(\"order\", \"policy\")  # ②\n    builder.add_edge(\"read\", \"shipping\")\n    if kind == \"list\":\n        builder.add_edge([\"policy\", \"shipping\"], \"draft\")  # ③\n    else:\n        builder.add_edge(\"policy\", \"draft\")\n        builder.add_edge(\"shipping\", \"draft\")\n    builder.add_edge(\"draft\", END)\n    return builder.compile()\n\n\nfor kind in (\"separate\", \"list\", \"defer\"):\n    notes = build(kind).invoke({\"customer\": \"Ana\", \"notes\": []})[\"notes\"]\n    print(kind)\n    for note in notes:\n        if note.startswith(\"draft\"):\n            print(\"  \", note)  # ④\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "separate"
+  },
+  {
+   "kind": "stdout",
+   "text": "   draft: super-step 3, notes seen 3"
+  },
+  {
+   "kind": "stdout",
+   "text": "   draft: super-step 4, notes seen 5"
+  },
+  {
+   "kind": "stdout",
+   "text": "list"
+  },
+  {
+   "kind": "stdout",
+   "text": "   draft: super-step 4, notes seen 4"
+  },
+  {
+   "kind": "stdout",
+   "text": "defer"
+  },
+  {
+   "kind": "stdout",
+   "text": "   draft: super-step 4, notes seen 4"
+  }
+ ]
+}

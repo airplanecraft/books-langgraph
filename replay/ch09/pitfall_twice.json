@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:22:07+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A retry runs the whole node again, so a mail can go out twice.\nBook: Chapter 9, section 9.7\nRun: python ch09/pitfall_twice.py\n\"\"\"\n# region: twice\nfrom typing import TypedDict\n\nfrom langgraph.graph import START, StateGraph\nfrom langgraph.types import RetryPolicy\n\n\nclass LossyMailServer:\n    \"\"\"A toy mail server that sends the mail, then loses the first reply.\"\"\"\n\n    def __init__(self) -> None:\n        self.sent: dict = {}\n        self.calls = 0\n\n    def send(self, text: str, key: str = \"\") -> None:\n        self.calls += 1\n        self.sent[key or f\"call {self.calls}\"] = text  # ①\n        if self.calls == 1:\n            raise ConnectionError(\"the reply was lost\")\n\n\nclass State(TypedDict):\n    customer: str\n\n\ndef run(key: str) -> None:\n    server = LossyMailServer()\n\n    def send(state: State) -> dict:\n        server.send(\"Your refund is on its way.\", key)  # ②\n        return {}\n    policy = RetryPolicy(initial_interval=0.01, jitter=False)\n    builder = StateGraph(State)\n    builder.add_node(\"send\", send, retry_policy=policy)\n    builder.add_edge(START, \"send\")\n    builder.compile().invoke({\"customer\": \"Ana\"})\n    print(f\"key={key!r}: calls={server.calls} mails={len(server.sent)}\")\n\n\nrun(\"\")\nrun(\"ticket-17\")  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "key='': calls=2 mails=2"
+  },
+  {
+   "kind": "stdout",
+   "text": "key='ticket-17': calls=2 mails=1"
+  }
+ ]
+}

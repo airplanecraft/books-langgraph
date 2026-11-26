@@ -1,0 +1,54 @@
+{
+ "version": 1,
+ "lesson": "05-persistence",
+ "recordedAt": "2026-11-24T01:26:38+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The checkpoints of one run, read back with get_state_history and get_state.\nBook: Chapter 5, section 5.3\nRun: python ch05/get_state.py\n\"\"\"\n# region: history\nimport operator\nfrom typing import Annotated, TypedDict\n\nfrom langchain_core.runnables import RunnableConfig\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list, operator.add]\n\n\ndef read(state: State, config: RunnableConfig) -> dict:\n    step = config[\"metadata\"][\"langgraph_step\"]  # ①\n    print(\"read runs in super-step\", step)\n    return {\"notes\": [\"read the email\"]}\n\n\ndef draft(state: State, config: RunnableConfig) -> dict:\n    step = config[\"metadata\"][\"langgraph_step\"]\n    print(\"draft runs in super-step\", step)\n    return {\"notes\": [\"wrote a reply\"]}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"read\", read)\nbuilder.add_node(\"draft\", draft)\nbuilder.add_edge(START, \"read\")\nbuilder.add_edge(\"read\", \"draft\")\nbuilder.add_edge(\"draft\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}  # ②\ngraph.invoke({\"customer\": \"Ana\", \"notes\": []}, config)\nfor saved in reversed(list(graph.get_state_history(config))):  # ③\n    print(saved.metadata[\"step\"], saved.metadata[\"source\"], saved.next)\n    print(\"   \", saved.values)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "read runs in super-step 1"
+  },
+  {
+   "kind": "stdout",
+   "text": "draft runs in super-step 2"
+  },
+  {
+   "kind": "stdout",
+   "text": "-1 input ('__start__',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "    {'notes': []}"
+  },
+  {
+   "kind": "stdout",
+   "text": "0 loop ('read',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "    {'customer': 'Ana', 'notes': []}"
+  },
+  {
+   "kind": "stdout",
+   "text": "1 loop ('draft',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "    {'customer': 'Ana', 'notes': ['read the email']}"
+  },
+  {
+   "kind": "stdout",
+   "text": "2 loop ()"
+  },
+  {
+   "kind": "stdout",
+   "text": "    {'customer': 'Ana', 'notes': ['read the email', 'wrote a reply']}"
+  }
+ ]
+}

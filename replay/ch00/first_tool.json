@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "00-foundations",
+ "recordedAt": "2026-11-23T23:09:57+00:00",
+ "model": "deepseek-flash",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Offer one tool to the chat model and read the tool call in its reply.\nBook: Chapter 0, section 0.4\nRun: python ch00/first_tool.py   (or OFFLINE=1 python ch00/first_tool.py)\n\"\"\"\n# region: tool\nfrom langchain_core.tools import tool\n\nORDERS = {\"A17\": \"shipped on 18 November\", \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool  # ①\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n\nprint(\"name:\", lookup_order.name)  # ②\nprint(\"description:\", lookup_order.description)\nprint(\"parameters:\", lookup_order.args)\n# endregion\n\n\n# region: request\nfrom common import get_model\n\nmodel = get_model().bind_tools([lookup_order])  # ①\nquestion = {\"role\": \"user\", \"content\": \"Where is my order B42?\"}\nreply = model.invoke([question])\nprint(\"text:\", repr(reply.content))  # ②\nprint(\"tool calls:\", reply.tool_calls)  # ③\n# endregion\n"
+  },
+  {
+   "kind": "model",
+   "text": "{\"type\": \"ai\", \"data\": {\"content\": \"I'll look that up for you.\", \"additional_kwargs\": {\"refusal\": null, \"reasoning_content\": \"\"}, \"response_metadata\": {\"token_usage\": {\"completion_tokens\": 48, \"prompt_tokens\": 308, \"total_tokens\": 356, \"completion_tokens_details\": {\"accepted_prediction_tokens\": null, \"audio_tokens\": null, \"reasoning_tokens\": 0, \"rejected_prediction_tokens\": null, \"text_tokens\": null}, \"prompt_tokens_details\": {\"audio_tokens\": null, \"cache_write_tokens\": null, \"cached_tokens\": 128, \"image_tokens\": null, \"text_tokens\": null}, \"prompt_cache_hit_tokens\": 128, \"prompt_cache_miss_tokens\": 180}, \"model_provider\": \"deepseek\", \"model_name\": \"deepseek-flash\", \"system_fingerprint\": \"bc19ba97cbe016479903222bb1578db6\", \"id\": \"13091237-a49f-4162-a2d5-8807166a7f87\", \"finish_reason\": \"tool_calls\", \"logprobs\": null, \"normalized_finish_reason\": \"tool_call\"}, \"type\": \"ai\", \"name\": null, \"id\": \"lc_run--01a20aac-5280-73f8-8c92-925762c6f839-0\", \"tool_calls\": [{\"name\": \"lookup_order\", \"args\": {\"order_id\": \"B42\"}, \"id\": \"call_00_ET_kw1AktmkTG4UQv4dSgKU0093\", \"type\": \"tool_call\"}], \"invalid_tool_calls\": [], \"usage_metadata\": {\"input_tokens\": 308, \"output_tokens\": 48, \"total_tokens\": 356, \"input_token_details\": {\"cache_read\": 128}, \"output_token_details\": {\"reasoning\": 0}}}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "name: lookup_order"
+  },
+  {
+   "kind": "stdout",
+   "text": "description: Look up the shipping status of an order by its ID, such as A17."
+  },
+  {
+   "kind": "stdout",
+   "text": "parameters: {'order_id': {'title': 'Order Id', 'type': 'string'}}"
+  },
+  {
+   "kind": "stdout",
+   "text": "text: \"I'll look that up for you.\""
+  },
+  {
+   "kind": "stdout",
+   "text": "tool calls: [{'name': 'lookup_order', 'args': {'order_id': 'B42'}, 'id': 'call_00_ET_kw1AktmkTG4UQv4dSgKU0093', 'type': 'tool_call'}]"
+  }
+ ]
+}

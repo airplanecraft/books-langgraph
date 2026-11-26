@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "02-state-reducers",
+ "recordedAt": "2026-11-23T15:14:58+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: a node returns a key with a typo in its name.\nBook: Chapter 2, section 2.1\nRun: python ch02/quiz_typo.py\n\"\"\"\n# region: typo\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    category: str\n\n\ndef classify(state: State) -> dict:\n    return {\"catgory\": \"billing\"}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_edge(\"classify\", END)\nstart = {\"customer\": \"Ana\", \"category\": \"unknown\"}\nprint(builder.compile().invoke(start))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'customer': 'Ana', 'category': 'unknown'}"
+  }
+ ]
+}

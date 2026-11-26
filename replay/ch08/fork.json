@@ -1,0 +1,78 @@
+{
+ "version": 1,
+ "lesson": "08-time-travel",
+ "recordedAt": "2026-11-24T03:35:52+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Checkpoint fork: change one value on an older checkpoint and run on from there.\nBook: Chapter 8, section 8.5\nRun: python ch08/fork.py\n\"\"\"\nimport operator\nfrom typing import Annotated, Literal, TypedDict\n\nfrom common import ScriptedModel, say  # the stand-in model of chapter 0\n\nmodel = ScriptedModel(script=[say(\"Thanks for your email, we are on it.\")])\n\n\nclass State(TypedDict):\n    email: str\n    category: str\n    notes: Annotated[list, operator.add]\n    reply: str\n\n\ndef classify(state: State) -> dict:\n    found = \"refund\" in state[\"email\"].lower()  # ①\n    return {\"category\": \"billing\" if found else \"general\",\n            \"notes\": [\"classified\"]}\n\n\ndef route(state: State) -> Literal[\"draft\", \"escalate\"]:\n    return \"escalate\" if state[\"category\"] == \"billing\" else \"draft\"\n\n\ndef draft(state: State) -> dict:\n    print(\"draft runs\")\n    prompt = f\"Reply in two sentences to: {state['email']}\"\n    reply = model.invoke(prompt).content  # ②\n    return {\"reply\": reply, \"notes\": [\"drafted\"]}\n\n\ndef send(state: State) -> dict:\n    print(\"SENT\")  # stands for the mail service\n    return {\"notes\": [\"sent\"]}\n\n\ndef escalate(state: State) -> dict:\n    print(\"ESCALATED\")  # hands the ticket to a person\n    return {\"notes\": [\"passed to a person\"]}\n\nfrom langgraph.checkpoint.memory import InMemorySaver\nfrom langgraph.graph import END, START, StateGraph\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"classify\", classify)\nbuilder.add_node(\"draft\", draft)\nbuilder.add_node(\"send\", send)\nbuilder.add_node(\"escalate\", escalate)\nbuilder.add_edge(START, \"classify\")\nbuilder.add_conditional_edges(\"classify\", route)  # ①\nbuilder.add_edge(\"draft\", \"send\")\nbuilder.add_edge(\"send\", END)\nbuilder.add_edge(\"escalate\", END)\ngraph = builder.compile(checkpointer=InMemorySaver())\n\nconfig = {\"configurable\": {\"thread_id\": \"ana\"}}  # ②\nticket = {\"email\": \"I was charged twice for order A17.\", \"notes\": []}\nresult = graph.invoke(ticket, config)\nprint(result[\"category\"], result[\"notes\"])\n\n\nhistory = list(graph.get_state_history(config))\nbefore_draft = next(snapshot for snapshot in history\n                    if snapshot.next == (\"draft\",))\n\n# region: fork\nfork = graph.update_state(before_draft.config, {\"category\": \"billing\"})  # ①\ncopy = graph.get_state(fork)  # ②\nprint(copy.metadata[\"source\"], copy.next, copy.values[\"category\"])\nprint(\"thread now waits at:\", graph.get_state(config).next)  # ③\nresult = graph.invoke(None, fork)  # ④\nprint(result[\"category\"], result[\"notes\"])\nfor snapshot in graph.get_state_history(config):  # ⑤\n    print(snapshot.metadata[\"step\"], snapshot.metadata[\"source\"],\n          snapshot.next, snapshot.values.get(\"category\"))\nticket = {\"email\": \"Please refund order A17.\", \"notes\": []}\ngraph.invoke(ticket, config)  # ⑥\nprint(graph.get_state(config).values[\"notes\"])\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "draft runs"
+  },
+  {
+   "kind": "stdout",
+   "text": "SENT"
+  },
+  {
+   "kind": "stdout",
+   "text": "general ['classified', 'drafted', 'sent']"
+  },
+  {
+   "kind": "stdout",
+   "text": "update ('escalate',) billing"
+  },
+  {
+   "kind": "stdout",
+   "text": "thread now waits at: ('escalate',)"
+  },
+  {
+   "kind": "stdout",
+   "text": "ESCALATED"
+  },
+  {
+   "kind": "stdout",
+   "text": "billing ['classified', 'passed to a person']"
+  },
+  {
+   "kind": "stdout",
+   "text": "3 loop () billing"
+  },
+  {
+   "kind": "stdout",
+   "text": "2 update ('escalate',) billing"
+  },
+  {
+   "kind": "stdout",
+   "text": "3 loop () general"
+  },
+  {
+   "kind": "stdout",
+   "text": "2 loop ('send',) general"
+  },
+  {
+   "kind": "stdout",
+   "text": "1 loop ('draft',) general"
+  },
+  {
+   "kind": "stdout",
+   "text": "0 loop ('classify',) None"
+  },
+  {
+   "kind": "stdout",
+   "text": "-1 input ('__start__',) None"
+  },
+  {
+   "kind": "stdout",
+   "text": "ESCALATED"
+  },
+  {
+   "kind": "stdout",
+   "text": "['classified', 'passed to a person', 'classified', 'passed to a person']"
+  }
+ ]
+}

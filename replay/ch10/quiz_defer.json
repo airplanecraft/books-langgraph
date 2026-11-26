@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:26+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: a list edge and a deferred node when only one branch is chosen.\nBook: Chapter 10, section 10.5\nRun: python ch10/quiz_defer.py\n\"\"\"\nimport operator\nfrom typing import Annotated, Callable, TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    log: Annotated[list[str], operator.add]\n\n\ndef make_node(label: str) -> Callable[[State], dict]:\n    def node(state: State) -> dict:\n        return {\"log\": [label]}\n\n    return node\n\n\ndef pick(state: State) -> list[str]:\n    return [\"refund\"]\n\n\ndef build(kind: str) -> object:\n    builder = StateGraph(State)\n    for label in (\"triage\", \"refund\", \"replace\"):\n        builder.add_node(label, make_node(label))\n    builder.add_node(\"close\", make_node(\"close\"), defer=(kind == \"defer\"))\n    builder.add_edge(START, \"triage\")\n    builder.add_conditional_edges(\"triage\", pick, [\"refund\", \"replace\"])\n    if kind == \"list\":\n        builder.add_edge([\"refund\", \"replace\"], \"close\")\n    else:\n        builder.add_edge(\"refund\", \"close\")\n        builder.add_edge(\"replace\", \"close\")\n    builder.add_edge(\"close\", END)\n    return builder.compile()\n\n\nfor kind in (\"list\", \"defer\"):\n    log = build(kind).invoke({\"log\": []})[\"log\"]\n    print(kind, log.count(\"close\"))\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "list 0"
+  },
+  {
+   "kind": "stdout",
+   "text": "defer 1"
+  }
+ ]
+}

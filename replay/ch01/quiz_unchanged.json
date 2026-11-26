@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "lesson": "01-your-first-graph",
+ "recordedAt": "2026-11-23T23:03:24+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Self-check run: each node returns one key of a three-key state.\nBook: Chapter 1, section 1.2\nRun: python ch01/quiz_unchanged.py\n\"\"\"\n# region: unchanged\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\n\nclass State(TypedDict):\n    a: int\n    b: int\n    c: int\n\n\ndef first(state: State) -> dict:\n    return {\"a\": state[\"a\"] + 1}\n\n\ndef second(state: State) -> dict:\n    return {\"b\": state[\"a\"] + 10}\n\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"first\", first)\nbuilder.add_node(\"second\", second)\nbuilder.add_edge(START, \"first\")\nbuilder.add_edge(\"first\", \"second\")\nbuilder.add_edge(\"second\", END)\nprint(builder.compile().invoke({\"a\": 0, \"b\": 0, \"c\": 0}))\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'a': 1, 'b': 11, 'c': 0}"
+  }
+ ]
+}

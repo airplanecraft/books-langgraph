@@ -1,0 +1,46 @@
+{
+ "version": 1,
+ "lesson": "06-streaming",
+ "recordedAt": "2026-11-24T01:57:25+00:00",
+ "model": "stand-in (no model)",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"One run of the agent loop in two stream modes and in the default.\nBook: Chapter 6, section 6.2\nRun: python ch06/modes.py\n\"\"\"\n# region: agent\nimport time\nfrom typing import Any\n\nfrom langchain_core.language_models.chat_models import BaseChatModel\nfrom langchain_core.tools import tool\nfrom langgraph.graph import START, MessagesState, StateGraph\nfrom langgraph.prebuilt import ToolNode, tools_condition\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\n@tool\ndef lookup_order(order_id: str) -> str:\n    \"\"\"Look up the shipping status of an order by its ID, such as A17.\"\"\"\n    time.sleep(1)  # the slow system behind the tool\n    return ORDERS.get(order_id, \"no order with that ID\")\n\n\ndef build(model: BaseChatModel) -> Any:\n    model = model.bind_tools([lookup_order])\n\n    def call_model(state: MessagesState) -> dict:\n        return {\"messages\": [model.invoke(state[\"messages\"])]}\n\n    builder = StateGraph(MessagesState)\n    builder.add_node(\"model\", call_model)\n    builder.add_node(\"tools\", ToolNode([lookup_order]))\n    builder.add_edge(START, \"model\")\n    builder.add_conditional_edges(\"model\", tools_condition)\n    builder.add_edge(\"tools\", \"model\")\n    return builder.compile()\n# endregion\n\n# region: setup\nfrom common import ScriptedModel, ask_for, say  # the helpers of chapter 0\n\nquestion = {\"messages\": [{\"role\": \"user\", \"content\": \"Where is B42?\"}]}\n\n\ndef stand_in() -> ScriptedModel:\n    return ScriptedModel(script=[\n        ask_for(\"lookup_order\", {\"order_id\": \"B42\"}),\n        say(\"Order B42 is delayed: waiting for stock.\")])\n# endregion\n\n# region: modes\ngraph = build(stand_in())\nfor state in graph.stream(question, stream_mode=\"values\"):  # ①\n    print(\"values:\", [message.type for message in state[\"messages\"]])\n\ngraph = build(stand_in())\nfor update in graph.stream(question, stream_mode=\"updates\"):  # ②\n    for node, change in update.items():\n        kinds = [message.type for message in change[\"messages\"]]\n        print(\"updates:\", node, kinds)\n\ngraph = build(stand_in())\nprint(\"default:\", [list(item) for item in graph.stream(question)])  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "values: ['human']"
+  },
+  {
+   "kind": "stdout",
+   "text": "values: ['human', 'ai']"
+  },
+  {
+   "kind": "stdout",
+   "text": "values: ['human', 'ai', 'tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "values: ['human', 'ai', 'tool', 'ai']"
+  },
+  {
+   "kind": "stdout",
+   "text": "updates: model ['ai']"
+  },
+  {
+   "kind": "stdout",
+   "text": "updates: tools ['tool']"
+  },
+  {
+   "kind": "stdout",
+   "text": "updates: model ['ai']"
+  },
+  {
+   "kind": "stdout",
+   "text": "default: [['model'], ['tools'], ['model']]"
+  }
+ ]
+}

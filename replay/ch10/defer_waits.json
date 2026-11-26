@@ -1,0 +1,38 @@
+{
+ "version": 1,
+ "lesson": "10-parallel-branches",
+ "recordedAt": "2026-11-24T02:25:24+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"Deferred node: defer=True waits for every pending branch, also one that does not lead to it.\nBook: Chapter 10, section 10.5\nRun: python ch10/defer_waits.py\n\"\"\"\nimport operator\nfrom typing import Annotated, Callable, TypedDict\n\nfrom langchain_core.runnables import RunnableConfig\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.graph.state import CompiledStateGraph\n\n\nclass State(TypedDict):\n    customer: str\n    notes: Annotated[list[str], operator.add]\n\n\ndef make_step(label: str) -> Callable[[State, RunnableConfig], dict]:\n    def step(state: State, config: RunnableConfig) -> dict:\n        number = config[\"metadata\"][\"langgraph_step\"]\n        seen = len(state[\"notes\"])\n        note = f\"{label}: super-step {number}, notes seen {seen}\"\n        return {\"notes\": [note]}\n\n    return step\n\n\n# region: waits\ndef build(kind: str) -> CompiledStateGraph:\n    builder = StateGraph(State)\n    for label in (\"read\", \"order\", \"shipping\", \"audit_1\", \"audit_2\"):\n        builder.add_node(label, make_step(label))\n    deferred = kind == \"defer\"\n    builder.add_node(\"draft\", make_step(\"draft\"), defer=deferred)\n    builder.add_edge(START, \"read\")\n    for label in (\"order\", \"shipping\", \"audit_1\"):\n        builder.add_edge(\"read\", label)\n    builder.add_edge(\"audit_1\", \"audit_2\")  # ①\n    builder.add_edge(\"audit_2\", END)\n    if kind == \"list\":\n        builder.add_edge([\"order\", \"shipping\"], \"draft\")\n    else:\n        builder.add_edge(\"order\", \"draft\")\n        builder.add_edge(\"shipping\", \"draft\")\n    builder.add_edge(\"draft\", END)\n    return builder.compile()\n\n\nfor kind in (\"list\", \"defer\"):\n    notes = build(kind).invoke({\"customer\": \"Ana\", \"notes\": []})[\"notes\"]\n    print(kind)\n    for note in notes:\n        if note.startswith((\"audit_2\", \"draft\")):  # ②\n            print(\"  \", note)\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "list"
+  },
+  {
+   "kind": "stdout",
+   "text": "   audit_2: super-step 3, notes seen 4"
+  },
+  {
+   "kind": "stdout",
+   "text": "   draft: super-step 3, notes seen 4"
+  },
+  {
+   "kind": "stdout",
+   "text": "defer"
+  },
+  {
+   "kind": "stdout",
+   "text": "   audit_2: super-step 3, notes seen 4"
+  },
+  {
+   "kind": "stdout",
+   "text": "   draft: super-step 4, notes seen 5"
+  }
+ ]
+}

@@ -1,0 +1,22 @@
+{
+ "version": 1,
+ "lesson": "09-errors-retries",
+ "recordedAt": "2026-11-24T02:48:17+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"The waits between attempts: initial_interval, backoff_factor and max_interval.\nBook: Chapter 9, section 9.4\nRun: python ch09/backoff.py\n\"\"\"\n# region: server\nclass MailServer:\n    \"\"\"A toy mail server that fails its first `failures` calls.\"\"\"\n\n    def __init__(self, failures: int) -> None:\n        self.failures = failures\n        self.attempts = 0\n\n    def send(self) -> str:\n        self.attempts += 1\n        if self.attempts <= self.failures:\n            raise ConnectionError(\"mail server unreachable\")\n        return \"sent the reply\"\n# endregion\n\n\n# region: waits\nimport operator\nfrom typing import Annotated, TypedDict\nfrom unittest.mock import patch\n\nfrom langgraph.graph import START, StateGraph\nfrom langgraph.types import RetryPolicy\n\n\nclass State(TypedDict):\n    notes: Annotated[list, operator.add]\n\n\nserver = MailServer(failures=4)\n\n\ndef send(state: State) -> dict:\n    return {\"notes\": [server.send()]}\n\n\npolicy = RetryPolicy(max_attempts=5, initial_interval=0.5,\n                     backoff_factor=2.0, max_interval=1.5, jitter=False)\nbuilder = StateGraph(State)\nbuilder.add_node(\"send\", send, retry_policy=policy)\nbuilder.add_edge(START, \"send\")\ngraph = builder.compile()\n\nwaits: list = []\nwith patch(\"time.sleep\", waits.append):  # ①\n    result = graph.invoke({\"notes\": []})\nprint(\"attempts:\", server.attempts)\nprint(\"waits asked for:\", waits)  # ②\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "attempts: 5"
+  },
+  {
+   "kind": "stdout",
+   "text": "waits asked for: [0.5, 1.0, 1.5, 1.5]"
+  }
+ ]
+}

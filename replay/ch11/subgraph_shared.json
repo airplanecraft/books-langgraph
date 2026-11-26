@@ -1,0 +1,34 @@
+{
+ "version": 1,
+ "lesson": "11-subgraphs-agents",
+ "recordedAt": "2026-11-24T03:21:03+00:00",
+ "model": "none",
+ "framework": "langgraph",
+ "frameworkVersion": "1.2.24",
+ "steps": [
+  {
+   "kind": "code",
+   "text": "\"\"\"A compiled graph used as a node of another graph, with a shared key.\nBook: Chapter 11, section 11.1\nRun: python ch11/subgraph_shared.py\n\"\"\"\n# region: lookup\nfrom typing import TypedDict\n\nfrom langgraph.graph import END, START, StateGraph\n\nORDERS = {\"A17\": \"shipped on 18 November\",\n          \"B42\": \"delayed: waiting for stock\"}\n\n\nclass OrderState(TypedDict):\n    order_id: str\n    status: str\n    source: str  # ①\n\n\ndef find(state: OrderState) -> dict:\n    print(\"find sees\", sorted(state))  # ②\n    status = ORDERS.get(state[\"order_id\"], \"no order with that ID\")\n    return {\"status\": status, \"source\": \"order system\"}\n\n\ninner = StateGraph(OrderState)\ninner.add_node(\"find\", find)\ninner.add_edge(START, \"find\")\ninner.add_edge(\"find\", END)\norders_graph = inner.compile()\n\nprint(orders_graph.invoke({\"order_id\": \"A17\"}))  # ③\n# endregion\n\n\n# region: parent\nclass Ticket(TypedDict):\n    customer: str\n    order_id: str\n    status: str\n    reply: str\n\n\ndef draft(state: Ticket) -> dict:\n    return {\"reply\": f\"Hi {state['customer']}, order {state['order_id']} \"\n                     f\"is {state['status']}.\"}\n\n\nouter = StateGraph(Ticket)\nouter.add_node(\"orders\", orders_graph)  # ①\nouter.add_node(\"draft\", draft)\nouter.add_edge(START, \"orders\")\nouter.add_edge(\"orders\", \"draft\")\nouter.add_edge(\"draft\", END)\ngraph = outer.compile()\n\nticket = {\"customer\": \"Ana\", \"order_id\": \"A17\"}\nresult = graph.invoke(ticket)  # ②\nprint(result)\nprint(sorted(result))  # ③\n# endregion\n"
+  },
+  {
+   "kind": "stdout",
+   "text": "find sees ['order_id']"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'order_id': 'A17', 'status': 'shipped on 18 November', 'source': 'order system'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "find sees ['order_id']"
+  },
+  {
+   "kind": "stdout",
+   "text": "{'customer': 'Ana', 'order_id': 'A17', 'status': 'shipped on 18 November', 'reply': 'Hi Ana, order A17 is shipped on 18 November.'}"
+  },
+  {
+   "kind": "stdout",
+   "text": "['customer', 'order_id', 'reply', 'status']"
+  }
+ ]
+}
